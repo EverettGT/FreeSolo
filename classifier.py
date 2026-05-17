@@ -1,5 +1,5 @@
 """
-1D-CNN Feature Extractor + MLP Classifier
+Convolutional Filter Feature Extractor + MLP Classifier
 
 Binary classification: 0=Human (eject), 1=Pathogen (keep)
 """
@@ -17,7 +17,7 @@ from sklearn.metrics import (accuracy_score, precision_score, recall_score,
                              roc_auc_score, roc_curve)
 
 
-#CNN feature extractor
+#Filter feature extractor
 class Conv1DFeatureExtractor:
     def __init__(self):
         self.filters = self._build_filter_bank()
