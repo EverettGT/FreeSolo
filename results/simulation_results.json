@@ -1,0 +1,37 @@
+{
+  "simulation_params": {
+    "n_pores": 256,
+    "human_fraction": 0.99,
+    "duration_seconds": 10,
+    "signal_source": "real_held_out_test_set"
+  },
+  "strand_counts": {
+    "total": 787,
+    "human": 781,
+    "pathogen": 6
+  },
+  "classification": {
+    "human_correctly_unblocked": 749,
+    "human_missed": 30,
+    "pathogen_correctly_sequenced": 6,
+    "pathogen_incorrectly_ejected": 0,
+    "unblock_accuracy": 0.9614890885750963
+  },
+  "efficiency": {
+    "bases_sequenced_vsi": 3507180,
+    "bases_sequenced_baseline": 3356000,
+    "bases_saved": -151180,
+    "percentage_saved": -4.504767580452921
+  },
+  "enrichment": {
+    "original_pathogen_pct": 0.7623888182973316,
+    "enriched_pathogen_pct": 16.666666666666664,
+    "enrichment_factor": 21.861111111111107
+  },
+  "latency": {
+    "mean_ms": 4.929929554824285,
+    "median_ms": 4.5878999517299235,
+    "p95_ms": 7.023960002698002
+  },
+  "timestamp": "2026-05-04T12:25:55.606479"
+}
