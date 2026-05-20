@@ -22,7 +22,7 @@ Evaluated on 15,000 held-out real R10.4.1 reads. No GPU required.
 
 ## Architecture
 
-FreeSolo uses a bank of 15 biologically motivated 1D convolutional filters (edge detectors, Laplacian-of-Gaussian blob detectors, sinusoidal frequency filters, and moving-average baseline filters) to extract a 284-dimensional feature vector from each 4,000-sample signal window. A shallow MLP (256→128→64→2) classifies each vector in under 5 ms on CPU.
+FreeSolo uses a bank of 15 biologically motivated 1D convolutional filters (edge detectors, Laplacian-of-Gaussian blob detectors, sinusoidal frequency filters, and moving-average baseline filters) to extract a 280-dimensional feature vector from each 4,000-sample signal window. A shallow MLP (256→128→64→2) classifies each vector in under 5 ms on CPU.
 
 The model occupies less than 1 MB of RAM and is architecturally compatible with the MinKNOW ReadUntil API.
 
