@@ -2,36 +2,38 @@
   "simulation_params": {
     "n_pores": 256,
     "human_fraction": 0.99,
-    "duration_seconds": 10,
-    "signal_source": "real_held_out_test_set"
+    "duration_seconds": 600,
+    "signal_source": "real_held_out_test_set",
+    "sampling_rate_hz": 5000,
+    "sampling_method": "random_without_replacement_with_reshuffle"
   },
   "strand_counts": {
-    "total": 787,
-    "human": 781,
-    "pathogen": 6
+    "total": 51682,
+    "human": 51185,
+    "pathogen": 497
   },
   "classification": {
-    "human_correctly_unblocked": 749,
-    "human_missed": 30,
-    "pathogen_correctly_sequenced": 6,
-    "pathogen_incorrectly_ejected": 0,
-    "unblock_accuracy": 0.9614890885750963
+    "human_correctly_unblocked": 49616,
+    "human_missed": 1502,
+    "pathogen_correctly_sequenced": 474,
+    "pathogen_incorrectly_ejected": 21,
+    "unblock_accuracy": 0.9706170037951407
   },
   "efficiency": {
-    "bases_sequenced_vsi": 3507180,
-    "bases_sequenced_baseline": 3356000,
-    "bases_saved": -151180,
-    "percentage_saved": -4.504767580452921
+    "bases_sequenced_vsi": 254845079,
+    "bases_sequenced_baseline": 236684000,
+    "bases_saved": -18161079,
+    "percentage_saved": -7.673133376147099
   },
   "enrichment": {
-    "original_pathogen_pct": 0.7623888182973316,
-    "enriched_pathogen_pct": 16.666666666666664,
-    "enrichment_factor": 21.861111111111107
+    "original_pathogen_pct": 0.961650090940753,
+    "enriched_pathogen_pct": 23.987854251012145,
+    "enrichment_factor": 24.9444725030344
   },
   "latency": {
-    "mean_ms": 4.929929554824285,
-    "median_ms": 4.5878999517299235,
-    "p95_ms": 7.023960002698002
+    "mean_ms": 5.5793975085072125,
+    "median_ms": 4.934099968522787,
+    "p95_ms": 9.007229999406258
   },
-  "timestamp": "2026-05-04T12:25:55.606479"
+  "timestamp": "2026-05-19T20:44:01.459925"
 }

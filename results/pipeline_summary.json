@@ -8,12 +8,12 @@
     0.9329711572663072,
     0.942428842733693
   ],
-  "latency_ms": 4.872498002368957,
-  "enrichment": 21.861111111111107,
+  "latency_ms": 5.239520000759512,
+  "enrichment": 24.9444725030344,
   "n_human": 50000,
   "n_pathogen": 50000,
   "species_ratio": "1:1:1:1 (equal: S.aureus:E.coli:P.aeruginosa:K.pneumoniae)",
-  "pipeline_seconds": 839.38090467453,
+  "pipeline_seconds": 1220.3350472450256,
   "human_source": "GIAB HG002/HG003/HG004 R10.4.1 (ONT open data)",
   "pathogen_source": "S.aureus/K.pneumoniae/P.aeruginosa/E.coli R10.4.1 (ENA PRJEB51164)"
 }
