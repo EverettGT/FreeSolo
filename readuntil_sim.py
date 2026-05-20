@@ -134,25 +134,20 @@ class ReadUntilSimulator:
             print(f"  Enrichment: {enrichment:.1f}x")
         return results
 
-    def run_simulation_from_arrays(self, X_test, y_test, duration_seconds=10, verbose=True):
-        """
-        ReadUntil simulation using real held-out test signals.
-        Draws actual signals from X_test instead of synthetic generators.
-        This matches the paper's description: signals are drawn from the real
-        held-out test set rather than synthetic generators.
-        """
+    def run_simulation_from_arrays(self, X_test, y_test, duration_seconds=600, verbose=True):
+
         if verbose:
             print(f"\n{'='*60}\nFreeSolo ReadUntil Simulation (real signals)\n{'='*60}")
             print(f"  Pores: {self.n_pores}, Human background: {self.human_fraction*100:.0f}%")
+            print(f"  Duration: {duration_seconds}s")
 
-        # Pre-separate test signals by class for fast sampling
         human_signals    = X_test[y_test == 0]
         pathogen_signals = X_test[y_test == 1]
         if len(human_signals) == 0 or len(pathogen_signals) == 0:
             raise ValueError("X_test must contain both human (0) and pathogen (1) reads.")
 
         window_size   = X_test.shape[1]
-        window_time_s = window_size / 4000.0   # 4 kHz sampling
+        window_time_s = window_size / 5000.0 
         n_steps       = int(duration_seconds / window_time_s)
 
         for p in self.pores:
@@ -163,6 +158,9 @@ class ReadUntilSimulator:
         total_bases_vsi = total_bases_baseline = 0
         latencies = []
 
+
+        h_order = self.rng.permutation(len(human_signals))
+        p_order = self.rng.permutation(len(pathogen_signals))
         h_idx = 0
         p_idx = 0
 
@@ -181,23 +179,29 @@ class ReadUntilSimulator:
                     if pore.samples_read == window_size:
                         # Draw real signal for this pore's strand type
                         if pore.current_strand_type == 'human':
-                            sig = human_signals[h_idx % len(human_signals)]
+                            if h_idx >= len(h_order):
+                                h_order = self.rng.permutation(len(human_signals))
+                                h_idx = 0
+                            sig = human_signals[h_order[h_idx]]
                             h_idx += 1
                         else:
-                            sig = pathogen_signals[p_idx % len(pathogen_signals)]
+                            if p_idx >= len(p_order):
+                                p_order = self.rng.permutation(len(pathogen_signals))
+                                p_idx = 0
+                            sig = pathogen_signals[p_order[p_idx]]
                             p_idx += 1
 
                         pred, conf, lat = self.classifier.predict_single(sig)
                         latencies.append(lat)
 
-                        if pred == 0:   # classified as human -> eject
+                        if pred == 0:
                             if pore.current_strand_type == 'human':
                                 human_unblocked += 1
                             else:
                                 pathogen_ejected += 1
                             total_bases_vsi += window_size
                             pore.unblock()
-                        else:           # classified as pathogen -> keep sequencing
+                        else:
                             if pore.current_strand_type == 'human':
                                 human_missed += 1
 
@@ -229,6 +233,8 @@ class ReadUntilSimulator:
                 'human_fraction': self.human_fraction,
                 'duration_seconds': duration_seconds,
                 'signal_source': 'real_held_out_test_set',
+                'sampling_rate_hz': 5000,
+                'sampling_method': 'random_without_replacement_with_reshuffle',
             },
             'strand_counts': {
                 'total': total_strands, 'human': human_strands, 'pathogen': pathogen_strands,
