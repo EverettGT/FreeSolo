@@ -95,9 +95,9 @@ def main():
 
     print("\n" + "="*70 + "\nSTEP 5: 10-Fold Cross-Validation\n" + "="*70)
     cv_idx    = np.random.RandomState(args.seed).choice(
-        len(y), size=min(10000, len(y)), replace=False)
-    X_cv_feat = clf.feature_extractor.fit_transform(X[cv_idx])
-    y_cv      = y[cv_idx]
+        len(y_train), size=min(10000, len(y_train)), replace=False)
+    X_cv_feat = clf.feature_extractor.fit_transform(X_train[cv_idx])
+    y_cv      = y_train[cv_idx]
     cv_model  = MLPClassifier(
         hidden_layer_sizes=(256, 128, 64), activation="relu",
         solver="adam", alpha=1e-4, max_iter=300,
