@@ -13,8 +13,8 @@ FreeSolo is a CPU-only binary classifier that distinguishes human from microbial
 | AUC-ROC | 0.9950 |
 | Accuracy | 0.9671 |
 | F1 Score | 0.9669 |
-| Mean latency | 4.87 ms |
-| Enrichment (99% human) | **21.9x** |
+| Mean latency | 5.24 ms |
+| Enrichment (99% human) | **24.9x** |
 
 Evaluated on 15,000 held-out real R10.4.1 reads. No GPU required.
 
