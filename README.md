@@ -84,7 +84,7 @@ pod5 convert fast5 barcode09/ --output ecoli.pod5 --force-overwrite
 ```
 Downloads/nanopore/
 ├── human/
-│   ├── PAO89685_pass__*.pod5   (20 files, GIAB HG002/3/4)
+│   ├── PAO89685_pass__*.pod5
 │   └── ...
 └── pathogen/
     ├── saureus.pod5
@@ -163,12 +163,12 @@ Reads are drawn until the post-QC quota is met per source — rejected reads are
 
 ```
 FreeSolo/
-├── run_pipeline.py        # Master pipeline
-├── classifier.py          # 1D-CNN feature extractor + MLP classifier
-├── real_data_loader.py    # POD5 data loader with post-QC quota sampling
-├── readuntil_sim.py       # ReadUntil hardware simulator
+├── run_pipeline.py       
+├── classifier.py         
+├── real_data_loader.py  
+├── readuntil_sim.py     
 ├── requirements.txt
-└── results/               # Output directory (created on first run)
+└── results/             
 ```
 
 ---
