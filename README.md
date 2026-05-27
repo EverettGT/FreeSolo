@@ -100,7 +100,7 @@ The pipeline auto-detects these paths from `~/Downloads/nanopore/`. Override wit
 ## Installation
 
 ```bash
-git clone https://github.com/estubin3/FreeSolo.git
+git clone https://github.com/EverettGT/FreeSolo.git
 cd FreeSolo
 pip install -r requirements.txt
 ```
