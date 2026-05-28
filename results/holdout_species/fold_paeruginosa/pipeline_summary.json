@@ -1,0 +1,18 @@
+{
+  "held_out_species": "paeruginosa",
+  "held_out_species_name": "P. aeruginosa",
+  "accuracy": 0.96595,
+  "precision": 0.9787733938264603,
+  "recall": 0.96648,
+  "f1": 0.9725878517087309,
+  "auc_roc": 0.9949047786666666,
+  "latency_ms": 5.239885014016181,
+  "n_train": 80000,
+  "n_train_human": 42500,
+  "n_train_pathogen": 37500,
+  "n_test": 20000,
+  "n_test_human": 7500,
+  "n_test_pathogen": 12500,
+  "train_time_seconds": 477.83743834495544,
+  "fold_seed": 49583
+}

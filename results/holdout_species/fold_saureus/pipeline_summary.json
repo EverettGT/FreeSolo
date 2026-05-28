@@ -1,0 +1,18 @@
+{
+  "held_out_species": "saureus",
+  "held_out_species_name": "S. aureus",
+  "accuracy": 0.8948,
+  "precision": 0.9833550306862563,
+  "recall": 0.846,
+  "f1": 0.9095209426335255,
+  "auc_roc": 0.9834084799999999,
+  "latency_ms": 6.000978008378297,
+  "n_train": 80000,
+  "n_train_human": 42500,
+  "n_train_pathogen": 37500,
+  "n_test": 20000,
+  "n_test_human": 7500,
+  "n_test_pathogen": 12500,
+  "train_time_seconds": 456.65221881866455,
+  "fold_seed": 23131
+}

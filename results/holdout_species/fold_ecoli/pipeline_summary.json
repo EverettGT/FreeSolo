@@ -1,0 +1,18 @@
+{
+  "held_out_species": "ecoli",
+  "held_out_species_name": "E. coli",
+  "accuracy": 0.96715,
+  "precision": 0.9797456047962407,
+  "recall": 0.96744,
+  "f1": 0.9735539186088636,
+  "auc_roc": 0.994781632,
+  "latency_ms": 5.689344012644142,
+  "n_train": 80000,
+  "n_train_human": 42500,
+  "n_train_pathogen": 37500,
+  "n_test": 20000,
+  "n_test_human": 7500,
+  "n_test_pathogen": 12500,
+  "train_time_seconds": 527.2913658618927,
+  "fold_seed": 11099
+}

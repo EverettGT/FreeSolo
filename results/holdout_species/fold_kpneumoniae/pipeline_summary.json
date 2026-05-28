@@ -1,0 +1,18 @@
+{
+  "held_out_species": "kpneumoniae",
+  "held_out_species_name": "K. pneumoniae",
+  "accuracy": 0.9715,
+  "precision": 0.9781179865341456,
+  "recall": 0.97624,
+  "f1": 0.9771780909673287,
+  "auc_roc": 0.9961340746666666,
+  "latency_ms": 5.423563006334007,
+  "n_train": 80000,
+  "n_train_human": 42500,
+  "n_train_pathogen": 37500,
+  "n_test": 20000,
+  "n_test_human": 7500,
+  "n_test_pathogen": 12500,
+  "train_time_seconds": 523.112993478775,
+  "fold_seed": 22139
+}
