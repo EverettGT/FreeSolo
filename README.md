@@ -2,7 +2,7 @@
 
 **Real-time basecall-free pathogen enrichment from raw nanopore signal**
 
-FreeSolo is a CPU-only binary classifier that distinguishes human from microbial DNA directly from raw picoamp nanopore electrical signals, without basecalling. It is designed for deployment with the Oxford Nanopore Technologies [ReadUntil API](https://github.com/nanoporetech/read_until_api), enabling real-time selective sequencing at 99% human background with **0.9950 AUC-ROC** and **21.9x pathogen enrichment**.
+FreeSolo is a CPU-only binary classifier that distinguishes human from microbial DNA directly from raw picoamp nanopore electrical signals, without basecalling. It is designed for deployment with the Oxford Nanopore Technologies [ReadUntil API](https://github.com/nanoporetech/read_until_api), enabling real-time selective sequencing at 99% human background with **0.9950 AUC-ROC** and **24.9x pathogen enrichment**.
 
 ---
 
