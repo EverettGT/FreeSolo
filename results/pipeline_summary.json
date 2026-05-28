@@ -5,15 +5,17 @@
   "f1": 0.9669476783085775,
   "auc_roc": 0.9950467555555554,
   "ci_95": [
-    0.9329711572663072,
-    0.942428842733693
+    0.9217543531073736,
+    0.9352456468926263
   ],
-  "latency_ms": 5.239520000759512,
-  "enrichment": 24.9444725030344,
+  "latency_ms": 6.768748003523797,
+  "enrichment": 25.142121366649665,
   "n_human": 50000,
   "n_pathogen": 50000,
   "species_ratio": "1:1:1:1 (equal: S.aureus:E.coli:P.aeruginosa:K.pneumoniae)",
-  "pipeline_seconds": 1220.3350472450256,
+  "pipeline_seconds": 4002.223878145218,
   "human_source": "GIAB HG002/HG003/HG004 R10.4.1 (ONT open data)",
-  "pathogen_source": "S.aureus/K.pneumoniae/P.aeruginosa/E.coli R10.4.1 (ENA PRJEB51164)"
+  "pathogen_source": "S.aureus/K.pneumoniae/P.aeruginosa/E.coli R10.4.1 (ENA PRJEB51164)",
+  "holdout_mean_auc_roc": 0.9923072413333334,
+  "holdout_mean_recall": 0.9390399999999999
 }

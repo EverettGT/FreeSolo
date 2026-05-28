@@ -8,32 +8,32 @@
     "sampling_method": "random_without_replacement_with_reshuffle"
   },
   "strand_counts": {
-    "total": 51682,
-    "human": 51185,
-    "pathogen": 497
+    "total": 51672,
+    "human": 51192,
+    "pathogen": 480
   },
   "classification": {
-    "human_correctly_unblocked": 49616,
-    "human_missed": 1502,
-    "pathogen_correctly_sequenced": 474,
+    "human_correctly_unblocked": 49623,
+    "human_missed": 1503,
+    "pathogen_correctly_sequenced": 458,
     "pathogen_incorrectly_ejected": 21,
-    "unblock_accuracy": 0.9706170037951407
+    "unblock_accuracy": 0.9706020420138481
   },
   "efficiency": {
-    "bases_sequenced_vsi": 254845079,
-    "bases_sequenced_baseline": 236684000,
-    "bases_saved": -18161079,
-    "percentage_saved": -7.673133376147099
+    "bases_sequenced_vsi": 255437450,
+    "bases_sequenced_baseline": 237160000,
+    "bases_saved": -18277450,
+    "percentage_saved": -7.706801315567549
   },
   "enrichment": {
-    "original_pathogen_pct": 0.961650090940753,
-    "enriched_pathogen_pct": 23.987854251012145,
-    "enrichment_factor": 24.9444725030344
+    "original_pathogen_pct": 0.9289363678588017,
+    "enriched_pathogen_pct": 23.355430902600713,
+    "enrichment_factor": 25.142121366649665
   },
   "latency": {
-    "mean_ms": 5.5793975085072125,
-    "median_ms": 4.934099968522787,
-    "p95_ms": 9.007229999406258
+    "mean_ms": 5.460663068000197,
+    "median_ms": 4.918849910609424,
+    "p95_ms": 8.478425035718828
   },
-  "timestamp": "2026-05-19T20:44:01.459925"
+  "timestamp": "2026-05-28T12:58:13.820821"
 }
