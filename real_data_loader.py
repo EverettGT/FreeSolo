@@ -112,12 +112,12 @@ def load_pod5_reads(pod5_path: str, n_reads: int, label: int, seed: int = 42):
 
 
 def load_dataset(human_pod5_dir: str, pathogen_pod5_dir: str,
-                 n_human: int = 50000, n_pathogen: int = 46000,
+                 n_human: int = 50000, n_pathogen: int = 50000,
                  seed: int = 42):
     """
     Load balanced human + pathogen dataset.
 
-    Pathogen reads sampled with 1:2:2:2 ratio:
+    Pathogen reads sampled with 1:1:1:1 ratio:
       S. aureus : E. coli : P. aeruginosa : K. pneumoniae
     """
     import pod5 as _pod5
