@@ -513,6 +513,29 @@ def main():
             for k_ in ("empirical_lengths", "equal_lengths(human distribution for both)"):
                 log(f"H3 {k_}: {H['H3_simulation'][k_]['enrichment']}")
             dump()
+
+        if "H3_sensitivity" not in H:
+            need(150)
+            te_h, p, _ = pickle.load(open(os.path.join(cache, "main_model.pkl"), "rb"))
+            lh, lp = np.array(lens["human"], float), np.array(lens["pathogen"], float)
+            lat = R["F_latency_ms"]["end_to_end_mean"]
+            yt = hy[te_h]
+            grid = []
+            for cap in (0.5, 2.0, 5.0):
+                for unb in (0.1, 0.5, 1.0):
+                    for lens_mode in ("empirical", "equal"):
+                        sim = ReadUntilSimulator(n_pores=512, human_fraction=0.99, seed=a.seed,
+                                                 capture_s=cap, unblock_s=unb)
+                        r_ = sim.run_simulation_from_probs(
+                            p[yt == 0], p[yt == 1], lh, lp if lens_mode == "empirical" else lh,
+                            1500 + WINDOW, lat, duration_seconds=a.sim_duration, verbose=False)
+                        grid.append({"capture_s": cap, "unblock_s": unb, "pathogen_lengths": lens_mode,
+                                     **r_["enrichment"],
+                                     "adaptive_pathogen_share": r_["bases"]["adaptive_pathogen_share"],
+                                     "control_pathogen_share": r_["bases"]["control_pathogen_share"]})
+            H["H3_sensitivity"] = grid
+            log("H3 sensitivity grid done")
+            dump()
         log("ALL DONE")
     except OutOfTime:
         dump()
