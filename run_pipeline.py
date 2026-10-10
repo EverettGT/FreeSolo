@@ -32,6 +32,7 @@ from classifier import FreeSoloClassifier
 from readuntil_sim import ReadUntilSimulator
 from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
 from sklearn.neural_network import MLPClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (accuracy_score, precision_score, recall_score,
                              f1_score, roc_auc_score, confusion_matrix,
                              classification_report, roc_curve)
@@ -62,6 +63,8 @@ def parse_args():
     p.add_argument("--test-flowcell", default="PAO98633",
                    help="human flow cell held out for testing (default: HG004 run)")
     p.add_argument("--sim-duration", type=int, default=3600)
+    p.add_argument("--model", choices=["logreg", "mlp"], default="logreg",
+                   help="classifier on the 280 features (default logistic regression)")
     p.add_argument("--out-dir", default=None,
                    help="where data/, models/ and results/ are written (default: repository folder)")
     return p.parse_args()
@@ -76,7 +79,7 @@ def load_human_reads(human_pod5_dir, n_human, seed):
 
 
 def run_holdout_fold(held_out, X_human, species_data, seed, fold_dir,
-                     human_flowcells=None, test_flowcell=None):
+                     human_flowcells=None, test_flowcell=None, model_type="logreg"):
     display = SPECIES_DISPLAY[held_out]
     print(f"\n{'='*70}\nFOLD: Hold out {display}\n{'='*70}")
 
@@ -130,13 +133,13 @@ def run_holdout_fold(held_out, X_human, species_data, seed, fold_dir,
     print(f"  Train: {len(y_train):,}  (human={int(np.sum(y_train==0)):,}  pathogen={int(np.sum(y_train==1)):,})")
 
     t0 = time.time()
-    clf = FreeSoloClassifier(hidden_layers=(256, 128, 64), max_iter=500, random_state=seed)
+    clf = FreeSoloClassifier(model_type=model_type, random_state=seed)
     history = clf.train(X_train, y_train)
     train_time = time.time() - t0
     print(f"  Training time: {train_time:.0f}s")
 
     save_history = dict(history)
-    save_history["loss_curve"] = [float(x) for x in history["loss_curve"]]
+    save_history["loss_curve"] = [float(x) for x in (history["loss_curve"] or [])]
     with open(os.path.join(fold_dir, "training_history.json"), "w") as f:
         json.dump(save_history, f, indent=2)
 
@@ -273,10 +276,10 @@ def main():
     print(f"  Train: {len(y_train):,}  Val: {len(y_val):,}  Test: {len(y_test):,}")
 
     print("\n" + "="*70 + "\nSTEP 3: Training\n" + "="*70)
-    clf = FreeSoloClassifier(hidden_layers=(256, 128, 64), max_iter=500, random_state=args.seed)
+    clf = FreeSoloClassifier(model_type=args.model, random_state=args.seed)
     history = clf.train(X_train, y_train, X_val, y_val)
     save_history = dict(history)
-    save_history["loss_curve"] = [float(x) for x in history["loss_curve"]]
+    save_history["loss_curve"] = [float(x) for x in (history["loss_curve"] or [])]
     with open(os.path.join(results_dir, "training_history.json"), "w") as f:
         json.dump(save_history, f, indent=2)
 
@@ -293,11 +296,10 @@ def main():
         len(y_train), size=min(10000, len(y_train)), replace=False)
     X_cv_feat = clf.feature_extractor.extract_features(X_train[cv_idx])
     y_cv      = y_train[cv_idx]
-    # same MLP configuration as the reported model (the original CV used
-    # max_iter=300, default batch size and a constant learning rate)
+    # same classifier configuration as the reported model
     cv_pipeline = Pipeline([
         ("scaler", StandardScaler()),
-        ("mlp", MLPClassifier(
+        ("clf", LogisticRegression(max_iter=3000)) if args.model == "logreg" else ("mlp", MLPClassifier(
             hidden_layer_sizes=(256, 128, 64), activation="relu",
             solver="adam", alpha=1e-4, batch_size=64, learning_rate="adaptive",
             learning_rate_init=1e-3, max_iter=500, random_state=args.seed,
@@ -354,7 +356,8 @@ def main():
             result = run_holdout_fold(
                 held_out, X_human_ho, species_data, args.seed, fold_dir,
                 human_flowcells=human_fc_ho,
-                test_flowcell=args.test_flowcell if human_fc_ho else None)
+                test_flowcell=args.test_flowcell if human_fc_ho else None,
+                model_type=args.model)
             holdout_results.append(result)
 
         aucs    = [r["auc_roc"]  for r in holdout_results]

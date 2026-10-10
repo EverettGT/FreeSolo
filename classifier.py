@@ -13,6 +13,7 @@ import time
 import pickle
 from scipy.stats import skew, kurtosis
 from sklearn.neural_network import MLPClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, precision_score, recall_score,
@@ -109,14 +110,24 @@ class Conv1DFeatureExtractor:
 
 #Binary classifier
 class FreeSoloClassifier:
-    def __init__(self, hidden_layers=(256, 128, 64), max_iter=500, random_state=42,
-                 verbose=True):
+    def __init__(self, model_type='logreg', hidden_layers=(256, 128, 64), max_iter=500,
+                 random_state=42, verbose=True, C=1.0):
+        """model_type: 'logreg' (default; L2 logistic regression on the
+        standardised 280 features) or 'mlp' (the 256-128-64 network used in
+        the first submission). Ablations showed the two are equivalent on
+        held-out flow cells, so the simpler linear model is the default."""
+        self.model_type = model_type
         self.feature_extractor = Conv1DFeatureExtractor()
-        self.model = MLPClassifier(
-            hidden_layer_sizes=hidden_layers, activation='relu', solver='adam',
-            alpha=1e-4, batch_size=64, learning_rate='adaptive',
-            learning_rate_init=1e-3, max_iter=max_iter, random_state=random_state,
-            early_stopping=True, validation_fraction=0.1, n_iter_no_change=20, verbose=verbose)
+        if model_type == 'logreg':
+            self.model = LogisticRegression(C=C, max_iter=3000)
+        elif model_type == 'mlp':
+            self.model = MLPClassifier(
+                hidden_layer_sizes=hidden_layers, activation='relu', solver='adam',
+                alpha=1e-4, batch_size=64, learning_rate='adaptive',
+                learning_rate_init=1e-3, max_iter=max_iter, random_state=random_state,
+                early_stopping=True, validation_fraction=0.1, n_iter_no_change=20, verbose=verbose)
+        else:
+            raise ValueError(f"unknown model_type {model_type}")
         self.feature_extractor.verbose = verbose
         self.training_history = {}
 
@@ -132,7 +143,9 @@ class FreeSoloClassifier:
         self.model.fit(X_train_feat, y_train)
         train_time = time.time() - t0
         self.training_history = {
-            'loss_curve': self.model.loss_curve_, 'n_iterations': self.model.n_iter_,
+            'model_type': self.model_type,
+            'loss_curve': getattr(self.model, 'loss_curve_', None),
+            'n_iterations': int(np.max(self.model.n_iter_)),
             'feature_extraction_time': feat_time, 'training_time': train_time,
             'n_features': X_train_feat.shape[1], 'n_train_samples': len(y_train),
             'train_accuracy': accuracy_score(y_train, self.model.predict(X_train_feat)),
@@ -161,7 +174,7 @@ class FreeSoloClassifier:
 
     def predict_raw(self, raw_pa, offset=1500, window=4000):
         """End-to-end decision on a raw picoamp read prefix: window
-        extraction + QC + MAD normalisation + features + MLP.
+        extraction + QC + MAD normalisation + features + classifier.
 
         Returns (pred or None if QC fails, P(pathogen), compute latency ms).
         Signal acquisition time ((offset+window)/sample_rate) is NOT included

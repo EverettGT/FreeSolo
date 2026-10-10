@@ -82,13 +82,16 @@ def summarize(y, p, thr=0.5):
             "n": int(len(y))}
 
 
+CLF = {"type": "logreg"}   # set from --clf in main()
+
+
 def mlp(seed):
-    c = FreeSoloClassifier(random_state=seed, verbose=False)
+    c = FreeSoloClassifier(model_type=CLF["type"], random_state=seed, verbose=False)
     return c
 
 
 def fit_predict_features(F_tr, y_tr, F_te, seed):
-    """Train scaler+MLP on precomputed features (same config as FreeSolo)."""
+    """Train scaler + classifier on precomputed features (same config as FreeSolo)."""
     from sklearn.preprocessing import StandardScaler
     c = mlp(seed)
     sc = StandardScaler().fit(F_tr)
@@ -123,10 +126,14 @@ def main():
     ap.add_argument("--n-main-per-species", type=int, default=3000)
     ap.add_argument("--n-length-survey", type=int, default=20000,
                     help="reads per class surveyed for read-length distributions")
+    ap.add_argument("--clf", choices=["logreg", "mlp"], default="logreg",
+                    help="classifier on the 280 features; model caches are kept per classifier")
     ap.add_argument("--budget", type=float, default=None,
                     help="stop before this many seconds; rerun to resume")
     a = ap.parse_args()
     t_start = time.time()
+    CLF["type"] = a.clf
+    sfx = "" if a.clf == "mlp" else f"_{a.clf}"   # MLP caches keep their original names
     cache = a.cache or os.path.join(a.out, "cache")
     os.makedirs(a.out, exist_ok=True)
     os.makedirs(cache, exist_ok=True)
@@ -237,7 +244,7 @@ def main():
 
         def fit(o):
             """Model trained on the flow-cell-held-out split at offset o (cached)."""
-            fn = os.path.join(cache, f"model_{o}.pkl")
+            fn = os.path.join(cache, f"model_{o}{sfx}.pkl")
             if os.path.exists(fn):
                 return pickle.load(open(fn, "rb"))
             need(45)
@@ -320,7 +327,7 @@ def main():
         if not done("F_latency_ms"):
             need(60)
             import pod5, glob
-            clf = FreeSoloClassifier(verbose=False)
+            clf = FreeSoloClassifier(model_type=a.clf, verbose=False)
             clf.feature_extractor.scaler = sc
             clf.feature_extractor.verbose = False
             clf.model = net
@@ -342,11 +349,11 @@ def main():
             R["F_latency_ms"] = {
                 "n": len(lat_full),
                 "preprocess_mean": float(np.mean(lat_pre)),
-                "features_plus_mlp_mean": float(np.mean(lat_core)),
+                "features_plus_classifier_mean": float(np.mean(lat_core)),
                 "end_to_end_mean": float(np.mean(lat_full)),
                 "end_to_end_p95": float(np.percentile(lat_full, 95)),
                 "acquisition_s_single_chunk": (1500 + WINDOW) / SAMPLE_RATE,
-                "hardware": f"{os.cpu_count()} CPU threads (diagnostics host)",
+                "hardware": f"{os.cpu_count()} CPU threads (diagnostics host)", "classifier": a.clf,
             }
             log(f"F end-to-end {R['F_latency_ms']['end_to_end_mean']:.2f} ms mean")
             dump()
@@ -444,7 +451,7 @@ def main():
             p, mdl = fit_predict_features(HF[~te_h], hy[~te_h], HF[te_h], a.seed)
             H["H1_flowcell_folds"][f] = summarize(hy[te_h], p)
             if f == a.test_flowcell:
-                pickle.dump((te_h, p, mdl), open(os.path.join(cache, "main_model.pkl"), "wb"))
+                pickle.dump((te_h, p, mdl), open(os.path.join(cache, f"main_model{sfx}.pkl"), "wb"))
             log(f"H1 held-out human flow cell {f}: AUC {H['H1_flowcell_folds'][f]['auc']:.4f} "
                 f"acc {H['H1_flowcell_folds'][f]['accuracy']:.4f}")
             dump()
@@ -465,6 +472,24 @@ def main():
             H["H2_species_holdout"][s_] = summarize(hy[te_h], p)
             log(f"H2 held-out {s_} (+ unseen human flow cell): AUC {H['H2_species_holdout'][s_]['auc']:.4f} "
                 f"pathogen recall {H['H2_species_holdout'][s_]['recall_pos']:.3f}")
+            dump()
+
+        # H4: calibration of P(pathogen) on the held-out test flow cell fold
+        # (the simulator thresholds these probabilities)
+        if "H4_calibration" not in H and os.path.exists(os.path.join(cache, f"main_model{sfx}.pkl")):
+            te_h, p, _ = pickle.load(open(os.path.join(cache, f"main_model{sfx}.pkl"), "rb"))
+            yt = hy[te_h]
+            bins = np.linspace(0, 1, 11)
+            rel = []
+            for lo, hi in zip(bins[:-1], bins[1:]):
+                m_ = (p >= lo) & ((p < hi) if hi < 1 else (p <= hi))
+                if m_.sum():
+                    rel.append({"bin": [float(lo), float(hi)], "n": int(m_.sum()),
+                                "mean_pred": float(p[m_].mean()), "frac_pathogen": float(yt[m_].mean())})
+            ece = sum(r_["n"] * abs(r_["mean_pred"] - r_["frac_pathogen"]) for r_ in rel) / len(yt)
+            H["H4_calibration"] = {"brier": float(np.mean((p - yt) ** 2)), "ece": float(ece),
+                                   "reliability": rel, "test_flowcell": a.test_flowcell}
+            log(f"H4 calibration: Brier {H['H4_calibration']['brier']:.4f} ECE {ece:.4f}")
             dump()
 
         # H3: read-length survey (all reads, including those too short to classify)
@@ -493,7 +518,7 @@ def main():
         lens = json.load(open(fn))
         if "H3_simulation" not in H:
             need(150)
-            te_h, p, _ = pickle.load(open(os.path.join(cache, "main_model.pkl"), "rb"))
+            te_h, p, _ = pickle.load(open(os.path.join(cache, f"main_model{sfx}.pkl"), "rb"))
             lh, lp = np.array(lens["human"], float), np.array(lens["pathogen"], float)
             lat = R["F_latency_ms"]["end_to_end_mean"]
             sim = ReadUntilSimulator(n_pores=512, human_fraction=0.99, seed=a.seed)
@@ -516,7 +541,7 @@ def main():
 
         if "H3_sensitivity" not in H:
             need(150)
-            te_h, p, _ = pickle.load(open(os.path.join(cache, "main_model.pkl"), "rb"))
+            te_h, p, _ = pickle.load(open(os.path.join(cache, f"main_model{sfx}.pkl"), "rb"))
             lh, lp = np.array(lens["human"], float), np.array(lens["pathogen"], float)
             lat = R["F_latency_ms"]["end_to_end_mean"]
             yt = hy[te_h]
