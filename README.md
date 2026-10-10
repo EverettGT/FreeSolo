@@ -8,40 +8,39 @@ FreeSolo is a CPU-only binary classifier that distinguishes human from microbial
 
 ## Results
 
+Results from the October 2026 revision (`diagnostics.py`, results in `results/revision/diagnostics.json`). Every test set uses human reads from a PromethION flow cell that was never seen in training.
+
 | Metric | Value |
 | --- | --- |
-| AUC-ROC | 0.9950 |
-| Accuracy | 0.9671 |
-| F1 Score | 0.9669 |
-| Mean latency | 6.77 ms |
-| Enrichment (99% human) | **25.1x** |
-| Holdout AUC (unseen species, mean) | **0.9923** |
+| AUC-ROC, each human flow cell held out in turn (mean ± sd, 3 folds) | 0.990 ± 0.002 |
+| Accuracy, same folds | 0.951 ± 0.008 |
+| AUC-ROC with 1 / 2 / 3 consecutive 4,000-sample chunks (reads of at least 13,500 samples, held-out flow cell PAO98633) | 0.974 / 0.985 / 0.990 |
+| Time to decision (1 chunk) | 1.1 s of signal + 6.3 ms compute (preprocessing included, 2 CPU threads) |
+| Relative enrichment in sequenced bases at 99% human (simulated) | 9.7x to 13.9x |
+| Pathogen yield gain over a no-ejection control (simulated) | 3.9x to 11.6x, depending on capture and unblock times |
 
-Evaluated on 15,000 held-out real R10.4.1 reads. No GPU required.
+Main-evaluation reads: 12,000 human (all 20 POD5 files) and 12,000 pathogen (3,000 per species). Simulated values come from an idealized model (no pore wear, no channel noise), so treat them as upper bounds.
 
----
+The first submission reported AUC 0.995 / accuracy 0.967 on a read-level random split and a 25.1x read-level enrichment from a simulator with a baseline accounting error; those numbers are kept in `results/` for reference only.
 
-## Generalization
+### Confound checks
 
-A leave-one-species-out experiment trained the classifier on three pathogen species and tested on the fourth, withheld entirely from training. Results confirm that FreeSolo learns a general signal-level distinction between human and bacterial DNA rather than memorizing reference genomes.
+Human reads (PromethION, ligation kit SQK-LSK114) and pathogen reads (GridION, rapid barcoding kit SQK-RBK114-96, one flow cell) differ in instrument, library kit, flow cell and run, so these checks ask how much of the accuracy could come from those differences:
 
-| Held-out species | AUC-ROC | Accuracy | Recall |
-| --- | --- | --- | --- |
-| *S. aureus* | 0.9834 | 0.8948 | 0.8460 |
-| *E. coli* | 0.9948 | 0.9671 | 0.9674 |
-| *P. aeruginosa* | 0.9949 | 0.9659 | 0.9665 |
-| *K. pneumoniae* | 0.9961 | 0.9715 | 0.9762 |
-| **Mean** | **0.9923** | **0.9499** | **0.9390** |
+| Check | Result |
+| --- | --- |
+| Window moved deeper into the read (1,500 → 3,000 → 5,500 → 9,500 samples) | AUC 0.974 → 0.975 → 0.980 → 0.978: no drop, so the classifier is not relying on adapter or barcode signal at the read start. A window at sample 0 (adapter included) gives 0.997. |
+| Can the features tell two human runs apart (same flow cell and sample; different flow cells; different PromethION models)? | AUC 0.51 to 0.57: run, flow cell and PromethION model leave little trace in the features. |
+| Species vs species on the single pathogen flow cell (platform held constant) | AUC tracks GC difference: S. aureus vs P. aeruginosa 0.97, S. aureus vs E. coli 0.89, E. coli vs K. pneumoniae 0.64, P. aeruginosa vs K. pneumoniae 0.67. |
+| Leave-one-species-out with an unseen human flow cell | AUC 0.955 to 0.993; S. aureus pathogen recall 0.70. |
 
-The lower *S. aureus* recall (32.9% GC) reflects its GC content sitting below the other three training species (50–67% GC). All four held-out AUC values exceed SquiggleNet's 0.817 out-of-distribution benchmark (Bao et al., 2021).
-
----
+What these checks cannot rule out: an effect of the GridION instrument or the rapid barcoding kit itself, because no human reads from that instrument and kit were available. A matched-platform dataset is needed for that.
 
 ## Architecture
 
 FreeSolo uses a bank of 15 biologically motivated 1D convolutional filters (edge detectors, Laplacian-of-Gaussian blob detectors, sinusoidal frequency filters, and moving-average baseline filters) to extract a 280-dimensional feature vector from each 4,000-sample signal window. A shallow MLP (256→128→64→2) classifies each vector in under 10 ms on CPU.
 
-The model occupies less than 1 MB of RAM and is architecturally compatible with the MinKNOW ReadUntil API.
+The filters are fixed, hand-designed kernels, not learned weights. The classifier has not yet been run against a live MinKNOW ReadUntil stream.
 
 ---
 
@@ -57,11 +56,11 @@ aws s3 cp s3://ont-open-data/giab_2023.05/ ./data/human/ \
     --exclude "*" --include "*.pod5"
 ```
 
-We used samples **HG002**, **HG003**, **HG004** across four PromethION flowcells (runs: 20230424, 20230428, 20230504, 20230503), R10.4.1, LSK114, 5 kHz.
+We used samples **HG002**, **HG003**, **HG004**: four runs on three PromethION flow cells (FLO-PRO114M, R10.4.1; PAO89685 twice, PAO98397, PAO98633), SQK-LSK114 ligation kit, 5 kHz, on PromethION 48 and PromethION 24 instruments. These values come from the run metadata in the POD5 files.
 
 ### Pathogen reads
 
-Download from ENA accession [PRJEB51164](https://www.ebi.ac.uk/ena/browser/view/PRJEB51164) (Sanderson et al., 2023, University of Oxford). This dataset contains four clinical bacterial species sequenced on a GridION with R10.4.1 flow cells and LSK114 library preparation at 5 kHz, matching the human data exactly.
+Download from ENA accession [PRJEB51164](https://www.ebi.ac.uk/ena/browser/view/PRJEB51164) (Sanderson et al., 2023, University of Oxford). The runs used here (barcodes 09 to 12) are one multiplexed run on a single GridION flow cell (FLO-MIN114, R10.4.1, flow cell FAW09960) with the **Rapid Barcoding Kit SQK-RBK114-96** at 5 kHz (Sanderson et al., 2024, Microbial Genomics 10:001246). The library kit and instrument therefore differ from the human data; see the confound checks above.
 
 ```
 curl -o data/pathogen/s_aureus.tar.gz \
@@ -149,16 +148,36 @@ python run_pipeline.py --skip-holdout
 python run_pipeline.py --skip-sim --skip-holdout
 ```
 
+### Confound diagnostics (revision)
+
+```
+python diagnostics.py --data ~/Downloads/nanopore --out results/revision --budget 160
+```
+
+Every step is checkpointed. With `--budget`, the script stops before the time limit and exits with code 3; run the same command again to continue. This is how the revision results were produced on a 2-core laptop VM.
+
+The main pipeline now holds out a human flow cell for testing by default (`--split flowcell`); `--split read` reproduces the original read-level split.
+
+### Basecall-first baseline
+
+`baselines/basecall_first.py` runs Dorado + minimap2 on the same reads (`results/revision/reads_main.csv`) and reports accuracy after the first 450 / 1,000 bases and for full reads, with basecalling throughput. It needs Dorado, minimap2, GRCh38 and the four bacterial reference genomes.
+
+### Tests
+
+```
+python -m pytest tests
+```
+
 ### Pipeline steps
 
 | Step | Description |
 | --- | --- |
 | 1 | Load 50k human + 50k pathogen reads from POD5 (12,500/species) |
-| 2 | Stratified 70/15/15 train/val/test split |
+| 2 | Split: human test reads from a held-out flow cell (default) or read-level 70/15/15 (`--split read`) |
 | 3 | Feature extraction + MLP training |
 | 4 | Evaluation on held-out test set |
 | 5 | 10-fold cross-validation on 10k training subsample |
-| 6 | ReadUntil simulation on real held-out signals |
+| 6 | ReadUntil simulation: control vs adaptive run, enrichment in bases, empirical read lengths |
 | 7 | Leave-one-species-out generalization experiment (4 folds) |
 
 Main results write to `results/`. Holdout fold results write to `results/holdout_species/`.
@@ -174,7 +193,7 @@ Each read is preprocessed identically to SquiggleNet (Bao et al., 2021):
 3. **MAD normalization**: replace modified z-score outliers (>3.5) with local mean, then standardize to zero mean, unit variance
 4. **Window**: extract 4,000-sample (0.8 second at 5 kHz) window
 
-Reads are drawn until the post-QC quota is met per source — rejected reads are replaced on-the-fly, so all reported counts reflect filtered signal.
+Reads are drawn until the post-QC quota is met per source (rejected reads are replaced on the fly), with equal quotas per human POD5 file. Every loaded read is recorded with its read ID, flow cell, run, kit and length (`reads.csv`).
 
 ---
 
@@ -186,6 +205,9 @@ FreeSolo/
 ├── classifier.py
 ├── real_data_loader.py
 ├── readuntil_sim.py
+├── diagnostics.py
+├── baselines/basecall_first.py
+├── tests/
 ├── requirements.txt
 └── results/
     └── holdout_species/
@@ -204,7 +226,7 @@ If you use FreeSolo, please cite:
 
 Human sequencing data: GIAB open dataset, Oxford Nanopore Technologies open data repository (registry.opendata.aws/ont-open-data, CC BY-NC 4.0).
 
-Pathogen sequencing data: Sanderson et al., 2023, University of Oxford, ENA accession PRJEB51164.
+Pathogen sequencing data: Sanderson et al., 2024 (Microbial Genomics 10:001246), University of Oxford, ENA accession PRJEB51164.
 
 ## License
 

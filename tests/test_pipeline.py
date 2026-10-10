@@ -92,3 +92,19 @@ def test_diagnostics_resume(data, tmp_path):
             break
     assert codes[0] == 3 and codes[-1] == 0, (codes, r.stdout[-1500:], r.stderr[-1500:])
     assert "G_simulation" in json.load(open(out / "diagnostics.json"))
+
+def test_basecall_first_paf_parsing(tmp_path):
+    sys.path.insert(0, os.path.join(ROOT, "baselines"))
+    import basecall_first as B
+    paf = tmp_path / "x.paf"
+    rows = [
+        "r1\t1000\t0\t900\t+\tchr1\t1\t0\t900\t850\t900\t60\ttp:A:P",
+        "r2\t1000\t0\t900\t+\tecoli_1\t1\t0\t900\t880\t900\t60\ttp:A:P",
+        "r2\t1000\t0\t900\t+\tchr2\t1\t0\t900\t300\t900\t5\ttp:A:P",
+        "r3\t1000\t0\t900\t+\tsaureus_1\t1\t0\t900\t880\t900\t60\ttp:A:S",
+    ]
+    paf.write_text("\n".join(rows) + "\n")
+    calls = B.classify_paf(str(paf), {"ecoli_1", "saureus_1"})
+    assert calls == {"r1": 0, "r2": 1}
+    m = B.metrics({"r1": 0, "r2": 1, "r3": 1, "r4": 0}, calls)
+    assert m["accuracy"] == 0.75 and m["pathogen_recall"] == 0.5 and m["fraction_mapped"] == 0.5

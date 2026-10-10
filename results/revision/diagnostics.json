@@ -1,0 +1,953 @@
+{
+  "params": {
+    "data": "/sessions/rcw-01lb2hwyz8fafpcv6kdr54yr/mnt/FreeSolo Bioinformatics Project/nanopore",
+    "out": "/sessions/rcw-01lb2hwyz8fafpcv6kdr54yr/mnt/FreeSolo Bioinformatics Project/revision_results/diagnostics",
+    "n_human": 4000,
+    "n_per_species": 1000,
+    "test_flowcell": "PAO98633",
+    "seed": 42,
+    "sim_duration": 3600,
+    "n_main_human": 12000,
+    "n_main_per_species": 3000,
+    "n_length_survey": 20000
+  },
+  "offsets": [
+    0,
+    1500,
+    3000,
+    5500,
+    9500
+  ],
+  "window": 4000,
+  "data": {
+    "n_human": 4000,
+    "n_pathogen": 4000,
+    "species_counts": {
+      "saureus": 1000,
+      "ecoli": 1000,
+      "paeruginosa": 1000,
+      "kpneumoniae": 1000
+    },
+    "rejected_short_or_qc": {
+      "human": 1897,
+      "saureus": 582,
+      "ecoli": 654,
+      "paeruginosa": 1655,
+      "kpneumoniae": 711
+    },
+    "min_raw_len_samples": 13500,
+    "human_runs": {
+      "PAO89685/afee3a87": 1000,
+      "PAO89685/f00d9ec3": 1000,
+      "PAO98397/3b48176a": 1000,
+      "PAO98633/240fe3d1": 1000
+    },
+    "pathogen_flowcells": [
+      "FAW09960"
+    ],
+    "kits": [
+      "sqk-lsk114",
+      "sqk-rbk114-96"
+    ],
+    "devices": [
+      "GXB04378",
+      "PC24B318",
+      "SEBP48"
+    ],
+    "median_raw_len_bases": {
+      "human": 13537.96,
+      "pathogen": 4293.72
+    }
+  },
+  "split": {
+    "test_flowcell": "PAO98633",
+    "n_train": 6000,
+    "n_test": 2000,
+    "train_human_flowcells": [
+      "PAO89685",
+      "PAO98397"
+    ],
+    "note": "pathogen reads all come from one flow cell; only the human side can be grouped"
+  },
+  "A_offset_sweep": {
+    "0": {
+      "auc": 0.996709,
+      "auc_ci95": [
+        0.9950021044408183,
+        0.9981899779080667
+      ],
+      "accuracy": 0.977,
+      "recall_pos": 0.984,
+      "recall_neg": 0.97,
+      "n": 2000
+    },
+    "1500": {
+      "auc": 0.974274,
+      "auc_ci95": [
+        0.9684389223879215,
+        0.9800032751575396
+      ],
+      "accuracy": 0.916,
+      "recall_pos": 0.902,
+      "recall_neg": 0.93,
+      "n": 2000
+    },
+    "3000": {
+      "auc": 0.974815,
+      "auc_ci95": [
+        0.968941548930567,
+        0.9795731610719863
+      ],
+      "accuracy": 0.913,
+      "recall_pos": 0.888,
+      "recall_neg": 0.938,
+      "n": 2000
+    },
+    "5500": {
+      "auc": 0.9801810000000001,
+      "auc_ci95": [
+        0.9749422487910189,
+        0.9845002861114583
+      ],
+      "accuracy": 0.9325,
+      "recall_pos": 0.916,
+      "recall_neg": 0.949,
+      "n": 2000
+    },
+    "9500": {
+      "auc": 0.97808,
+      "auc_ci95": [
+        0.9717515245943885,
+        0.9830990478443786
+      ],
+      "accuracy": 0.925,
+      "recall_pos": 0.903,
+      "recall_neg": 0.947,
+      "n": 2000
+    }
+  },
+  "D_read_level_split_offset1500": {
+    "auc": 0.97836482198258,
+    "auc_ci95": [
+      0.9733828838115293,
+      0.9825503364910882
+    ],
+    "accuracy": 0.9320833333333334,
+    "recall_pos": 0.9309182813816343,
+    "recall_neg": 0.9332234130255564,
+    "n": 2400
+  },
+  "B_batch_probes": {
+    "same_flowcell_same_sample_two_runs (PAO89685)": {
+      "n": [
+        1000,
+        1000
+      ],
+      "1500": {
+        "auc": 0.5736180000000001,
+        "auc_ci95": [
+          0.550722208707263,
+          0.5996487488187204
+        ],
+        "accuracy": 0.5495,
+        "recall_pos": 0.517,
+        "recall_neg": 0.582,
+        "n": 2000
+      },
+      "9500": {
+        "auc": 0.570752,
+        "auc_ci95": [
+          0.5464517709830169,
+          0.5988290988537576
+        ],
+        "accuracy": 0.5575,
+        "recall_pos": 0.531,
+        "recall_neg": 0.584,
+        "n": 2000
+      }
+    },
+    "PromethION24_PAO98397_vs_PromethION48_PAO98633 (HG003 vs HG004)": {
+      "n": [
+        1000,
+        1000
+      ],
+      "1500": {
+        "auc": 0.533416,
+        "auc_ci95": [
+          0.5078452459704831,
+          0.5592206936770233
+        ],
+        "accuracy": 0.5325,
+        "recall_pos": 0.524,
+        "recall_neg": 0.541,
+        "n": 2000
+      },
+      "9500": {
+        "auc": 0.5139130000000001,
+        "auc_ci95": [
+          0.4895714035725199,
+          0.5380733605611494
+        ],
+        "accuracy": 0.5105,
+        "recall_pos": 0.498,
+        "recall_neg": 0.523,
+        "n": 2000
+      }
+    },
+    "PAO89685_vs_PAO98633 (PromethION48, HG002 vs HG004)": {
+      "n": [
+        2000,
+        1000
+      ],
+      "1500": {
+        "auc": 0.5130844999999999,
+        "auc_ci95": [
+          0.4913157663014998,
+          0.5349354857022908
+        ],
+        "accuracy": 0.656,
+        "recall_pos": 0.044,
+        "recall_neg": 0.962,
+        "n": 3000
+      },
+      "9500": {
+        "auc": 0.530178,
+        "auc_ci95": [
+          0.5092545769875008,
+          0.5502865162109895
+        ],
+        "accuracy": 0.65,
+        "recall_pos": 0.076,
+        "recall_neg": 0.937,
+        "n": 3000
+      }
+    }
+  },
+  "C_positive_control": {
+    "saureus_vs_paeruginosa": {
+      "1500": {
+        "auc": 0.9687560000000001,
+        "auc_ci95": [
+          0.9604631513633518,
+          0.9758793718339587
+        ],
+        "accuracy": 0.9255,
+        "recall_pos": 0.916,
+        "recall_neg": 0.935,
+        "n": 2000
+      },
+      "9500": {
+        "auc": 0.9784140000000001,
+        "auc_ci95": [
+          0.971715427021491,
+          0.9841911128940066
+        ],
+        "accuracy": 0.937,
+        "recall_pos": 0.934,
+        "recall_neg": 0.94,
+        "n": 2000
+      }
+    },
+    "saureus_vs_ecoli": {
+      "1500": {
+        "auc": 0.884915,
+        "auc_ci95": [
+          0.8696779328353348,
+          0.900011168446002
+        ],
+        "accuracy": 0.805,
+        "recall_pos": 0.776,
+        "recall_neg": 0.834,
+        "n": 2000
+      },
+      "9500": {
+        "auc": 0.909809,
+        "auc_ci95": [
+          0.8977716998006466,
+          0.9219161072720757
+        ],
+        "accuracy": 0.832,
+        "recall_pos": 0.834,
+        "recall_neg": 0.83,
+        "n": 2000
+      }
+    },
+    "ecoli_vs_kpneumoniae": {
+      "1500": {
+        "auc": 0.638211,
+        "auc_ci95": [
+          0.6156435543573924,
+          0.6633517938331243
+        ],
+        "accuracy": 0.6145,
+        "recall_pos": 0.58,
+        "recall_neg": 0.649,
+        "n": 2000
+      },
+      "9500": {
+        "auc": 0.6437360000000001,
+        "auc_ci95": [
+          0.6223273512225173,
+          0.6681943329069152
+        ],
+        "accuracy": 0.6095,
+        "recall_pos": 0.562,
+        "recall_neg": 0.657,
+        "n": 2000
+      }
+    },
+    "paeruginosa_vs_kpneumoniae": {
+      "1500": {
+        "auc": 0.6718869999999999,
+        "auc_ci95": [
+          0.648644672112757,
+          0.6953036878051804
+        ],
+        "accuracy": 0.6445,
+        "recall_pos": 0.6,
+        "recall_neg": 0.689,
+        "n": 2000
+      },
+      "9500": {
+        "auc": 0.6545,
+        "auc_ci95": [
+          0.6303756356330613,
+          0.6778406073376966
+        ],
+        "accuracy": 0.621,
+        "recall_pos": 0.615,
+        "recall_neg": 0.627,
+        "n": 2000
+      }
+    }
+  },
+  "E_multi_chunk": {
+    "1": {
+      "auc": 0.974274,
+      "auc_ci95": [
+        0.9684389223879215,
+        0.9800032751575396
+      ],
+      "accuracy": 0.916,
+      "recall_pos": 0.902,
+      "recall_neg": 0.93,
+      "n": 2000,
+      "signal_needed_samples": 5500,
+      "acquisition_time_s": 1.1,
+      "approx_bases_before_decision": 440.0
+    },
+    "2": {
+      "auc": 0.9846,
+      "auc_ci95": [
+        0.9804210553486248,
+        0.9886651726651725
+      ],
+      "accuracy": 0.943,
+      "recall_pos": 0.915,
+      "recall_neg": 0.971,
+      "n": 2000,
+      "signal_needed_samples": 9500,
+      "acquisition_time_s": 1.9,
+      "approx_bases_before_decision": 760.0
+    },
+    "3": {
+      "auc": 0.990384,
+      "auc_ci95": [
+        0.9874185836490577,
+        0.993522291802505
+      ],
+      "accuracy": 0.9445,
+      "recall_pos": 0.907,
+      "recall_neg": 0.982,
+      "n": 2000,
+      "signal_needed_samples": 13500,
+      "acquisition_time_s": 2.7,
+      "approx_bases_before_decision": 1080.0
+    }
+  },
+  "F_latency_ms": {
+    "n": 300,
+    "preprocess_mean": 0.3718246133394132,
+    "features_plus_mlp_mean": 6.052764810028748,
+    "end_to_end_mean": 6.345076899979176,
+    "end_to_end_p95": 8.676524499514926,
+    "acquisition_s_single_chunk": 1.1,
+    "hardware": "2 CPU threads (diagnostics host)"
+  },
+  "G_simulation": {
+    "empirical_lengths": {
+      "simulation_params": {
+        "n_pores": 512,
+        "human_fraction": 0.99,
+        "duration_seconds": 3600,
+        "capture_s": 0.5,
+        "unblock_s": 0.1,
+        "decision_samples": 5500,
+        "decision_time_s": 1.1063450768999792,
+        "latency_ms": 6.345076899979176,
+        "threshold": 0.5,
+        "sampling_rate_hz": 5000,
+        "samples_per_base": 12.5,
+        "mean_len_human_bases": 17595.70052,
+        "mean_len_pathogen_bases": 9222.11052,
+        "seed": 42
+      },
+      "control": {
+        "h_captured": 41598.0,
+        "p_captured": 372.0,
+        "h_ejected": 0.0,
+        "h_missed": 0.0,
+        "p_ejected": 0.0,
+        "p_kept": 0.0,
+        "h_samples": 9069656640.074465,
+        "p_samples": 41502554.55145564,
+        "decided": 0.0,
+        "too_short": 0.0
+      },
+      "adaptive": {
+        "h_captured": 381739.0,
+        "p_captured": 3810.0,
+        "h_ejected": 355191.0,
+        "h_missed": 26548.0,
+        "p_ejected": 346.0,
+        "p_kept": 3464.0,
+        "h_samples": 7696537751.82195,
+        "p_samples": 368112186.5549615,
+        "decided": 385549.0,
+        "too_short": 0.0
+      },
+      "bases": {
+        "control_pathogen_bases": 3320204.3641164512,
+        "adaptive_pathogen_bases": 29448974.92439692,
+        "control_total_bases": 728892735.5700737,
+        "adaptive_total_bases": 645171995.0701529,
+        "control_pathogen_share": 0.004555134386844573,
+        "adaptive_pathogen_share": 0.04564515377204924
+      },
+      "enrichment": {
+        "relative_enrichment_bases": 10.020594321843596,
+        "absolute_enrichment_bases": 8.869627196045707,
+        "read_level_enrichment": 13.022038496429385
+      },
+      "classification": {
+        "human_ejected": 355191,
+        "human_missed": 26548,
+        "pathogen_kept": 3464,
+        "pathogen_ejected": 346,
+        "strands_too_short_to_decide": 0
+      },
+      "timestamp": "2026-10-10T05:04:03.551126"
+    },
+    "shared_lengths(human dist for both)": {
+      "simulation_params": {
+        "n_pores": 512,
+        "human_fraction": 0.99,
+        "duration_seconds": 3600,
+        "capture_s": 0.5,
+        "unblock_s": 0.1,
+        "decision_samples": 5500,
+        "decision_time_s": 1.1063450768999792,
+        "latency_ms": 6.345076899979176,
+        "threshold": 0.5,
+        "sampling_rate_hz": 5000,
+        "samples_per_base": 12.5,
+        "mean_len_human_bases": 17595.70052,
+        "mean_len_pathogen_bases": 17595.70052,
+        "seed": 42
+      },
+      "control": {
+        "h_captured": 41424.0,
+        "p_captured": 392.0,
+        "h_ejected": 0.0,
+        "h_missed": 0.0,
+        "p_ejected": 0.0,
+        "p_kept": 0.0,
+        "h_samples": 9024822822.424793,
+        "p_samples": 86600077.2188085,
+        "decided": 0.0,
+        "too_short": 0.0
+      },
+      "adaptive": {
+        "h_captured": 364341.0,
+        "p_captured": 3597.0,
+        "h_ejected": 338839.0,
+        "h_missed": 25502.0,
+        "p_ejected": 324.0,
+        "p_kept": 3273.0,
+        "h_samples": 7400809120.239257,
+        "p_samples": 714864006.8822554,
+        "decided": 367938.0,
+        "too_short": 0.0
+      },
+      "bases": {
+        "control_pathogen_bases": 6928006.17750468,
+        "adaptive_pathogen_bases": 57189120.550580435,
+        "control_total_bases": 728913831.9714882,
+        "adaptive_total_bases": 649253850.169721,
+        "control_pathogen_share": 0.009504561271346093,
+        "adaptive_pathogen_share": 0.08808437645095314
+      },
+      "enrichment": {
+        "relative_enrichment_bases": 9.267589942999873,
+        "absolute_enrichment_bases": 8.254773319382162,
+        "read_level_enrichment": 12.13352789943084
+      },
+      "classification": {
+        "human_ejected": 338839,
+        "human_missed": 25502,
+        "pathogen_kept": 3273,
+        "pathogen_ejected": 324,
+        "strands_too_short_to_decide": 0
+      },
+      "timestamp": "2026-10-10T05:04:05.537565"
+    },
+    "note": "diagnostic reads are restricted to >= 13,500 samples; the main pipeline simulation uses unrestricted lengths"
+  },
+  "H_main": {
+    "data": {
+      "n_human": 12000,
+      "n_pathogen": 12000,
+      "human_per_flowcell": {
+        "PAO89685": 6000,
+        "PAO98397": 3000,
+        "PAO98633": 3000
+      },
+      "species_counts": {
+        "saureus": 3000,
+        "ecoli": 3000,
+        "paeruginosa": 3000,
+        "kpneumoniae": 3000
+      },
+      "rejected": {
+        "human": 1680,
+        "saureus": 551,
+        "ecoli": 879,
+        "paeruginosa": 1731,
+        "kpneumoniae": 498
+      }
+    },
+    "H1_flowcell_folds": {
+      "PAO89685": {
+        "auc": 0.9874180416666666,
+        "auc_ci95": [
+          0.9855232931812343,
+          0.9890060673283448
+        ],
+        "accuracy": 0.9396,
+        "recall_pos": 0.95825,
+        "recall_neg": 0.9271666666666667,
+        "n": 10000
+      },
+      "PAO98397": {
+        "auc": 0.9913774583333332,
+        "auc_ci95": [
+          0.9896445764555893,
+          0.993011743821278
+        ],
+        "accuracy": 0.954,
+        "recall_pos": 0.949,
+        "recall_neg": 0.9606666666666667,
+        "n": 7000
+      },
+      "PAO98633": {
+        "auc": 0.9901996666666667,
+        "auc_ci95": [
+          0.9885433613041801,
+          0.9920851875872087
+        ],
+        "accuracy": 0.958,
+        "recall_pos": 0.964,
+        "recall_neg": 0.95,
+        "n": 7000
+      }
+    },
+    "H1_mean": {
+      "auc": [
+        0.9896650555555556,
+        0.0016600405346782127
+      ],
+      "accuracy": [
+        0.9505333333333333,
+        0.007901617274682148
+      ],
+      "recall_pos": [
+        0.9570833333333333,
+        0.006179041637305553
+      ],
+      "recall_neg": [
+        0.9459444444444444,
+        0.013973740805481007
+      ]
+    },
+    "H2_species_holdout": {
+      "saureus": {
+        "auc": 0.9548048888888889,
+        "auc_ci95": [
+          0.9499237142996819,
+          0.9595591766094753
+        ],
+        "accuracy": 0.8303333333333334,
+        "recall_pos": 0.703,
+        "recall_neg": 0.9576666666666667,
+        "n": 6000
+      },
+      "ecoli": {
+        "auc": 0.9914345555555555,
+        "auc_ci95": [
+          0.9897454872310398,
+          0.9930049816284308
+        ],
+        "accuracy": 0.9548333333333333,
+        "recall_pos": 0.953,
+        "recall_neg": 0.9566666666666667,
+        "n": 6000
+      },
+      "paeruginosa": {
+        "auc": 0.9922125555555555,
+        "auc_ci95": [
+          0.9906232609257718,
+          0.9936005201521695
+        ],
+        "accuracy": 0.9548333333333333,
+        "recall_pos": 0.9593333333333334,
+        "recall_neg": 0.9503333333333334,
+        "n": 6000
+      },
+      "kpneumoniae": {
+        "auc": 0.9924896666666667,
+        "auc_ci95": [
+          0.990976117394009,
+          0.9939223886900587
+        ],
+        "accuracy": 0.9545,
+        "recall_pos": 0.955,
+        "recall_neg": 0.954,
+        "n": 6000
+      }
+    },
+    "H3_simulation": {
+      "length_survey": {
+        "human": {
+          "n": 20000,
+          "median_bases": 5202.08,
+          "mean_bases": 13305.010344,
+          "frac_too_short_to_classify": 0.1027
+        },
+        "pathogen": {
+          "n": 20000,
+          "median_bases": 1253.04,
+          "mean_bases": 4845.847012,
+          "frac_too_short_to_classify": 0.2196
+        }
+      },
+      "empirical_lengths": {
+        "simulation_params": {
+          "n_pores": 512,
+          "human_fraction": 0.99,
+          "duration_seconds": 3600,
+          "capture_s": 0.5,
+          "unblock_s": 0.1,
+          "decision_samples": 5500,
+          "decision_time_s": 1.1063450768999792,
+          "latency_ms": 6.345076899979176,
+          "threshold": 0.5,
+          "sampling_rate_hz": 5000,
+          "samples_per_base": 12.5,
+          "mean_len_human_bases": 13305.010344,
+          "mean_len_pathogen_bases": 4845.847012,
+          "seed": 42
+        },
+        "control": {
+          "h_captured": 55266.0,
+          "p_captured": 530.0,
+          "h_ejected": 0.0,
+          "h_missed": 0.0,
+          "p_ejected": 0.0,
+          "p_kept": 0.0,
+          "h_samples": 9050594958.888004,
+          "p_samples": 26111590.0,
+          "decided": 0.0,
+          "too_short": 0.0
+        },
+        "adaptive": {
+          "h_captured": 550274.0,
+          "p_captured": 5493.0,
+          "h_ejected": 468915.0,
+          "h_missed": 24838.0,
+          "p_ejected": 149.0,
+          "p_kept": 4141.0,
+          "h_samples": 7276558009.313766,
+          "p_samples": 302730759.99081135,
+          "decided": 498043.0,
+          "too_short": 57724.0
+        },
+        "bases": {
+          "control_pathogen_bases": 2088927.2,
+          "adaptive_pathogen_bases": 24218460.799264908,
+          "control_total_bases": 726136523.9110403,
+          "adaptive_total_bases": 606343101.5443661,
+          "control_pathogen_share": 0.002876769217927284,
+          "adaptive_pathogen_share": 0.039941842724985376
+        },
+        "enrichment": {
+          "relative_enrichment_bases": 13.884270756263003,
+          "absolute_enrichment_bases": 11.593731365681345,
+          "read_level_enrichment": 15.04350489326363
+        },
+        "classification": {
+          "human_ejected": 468915,
+          "human_missed": 24838,
+          "pathogen_kept": 4141,
+          "pathogen_ejected": 149,
+          "strands_too_short_to_decide": 57724
+        },
+        "timestamp": "2026-10-10T05:17:04.779413"
+      },
+      "equal_lengths(human distribution for both)": {
+        "simulation_params": {
+          "n_pores": 512,
+          "human_fraction": 0.99,
+          "duration_seconds": 3600,
+          "capture_s": 0.5,
+          "unblock_s": 0.1,
+          "decision_samples": 5500,
+          "decision_time_s": 1.1063450768999792,
+          "latency_ms": 6.345076899979176,
+          "threshold": 0.5,
+          "sampling_rate_hz": 5000,
+          "samples_per_base": 12.5,
+          "mean_len_human_bases": 13305.010344,
+          "mean_len_pathogen_bases": 13305.010344,
+          "seed": 42
+        },
+        "control": {
+          "h_captured": 54783.0,
+          "p_captured": 548.0,
+          "h_ejected": 0.0,
+          "h_missed": 0.0,
+          "p_ejected": 0.0,
+          "p_kept": 0.0,
+          "h_samples": 8986685643.129545,
+          "p_samples": 91432887.03082943,
+          "decided": 0.0,
+          "too_short": 0.0
+        },
+        "adaptive": {
+          "h_captured": 519017.0,
+          "p_captured": 5168.0,
+          "h_ejected": 442417.0,
+          "h_missed": 23404.0,
+          "p_ejected": 163.0,
+          "p_kept": 4489.0,
+          "h_samples": 6852611104.138884,
+          "p_samples": 818800630.3858424,
+          "decided": 470473.0,
+          "too_short": 53712.0
+        },
+        "bases": {
+          "control_pathogen_bases": 7314630.9624663545,
+          "adaptive_pathogen_bases": 65504050.4308674,
+          "control_total_bases": 726249482.4128299,
+          "adaptive_total_bases": 613712938.761978,
+          "control_pathogen_share": 0.01007178819345226,
+          "adaptive_pathogen_share": 0.10673402220100892
+        },
+        "enrichment": {
+          "relative_enrichment_bases": 10.597325931694776,
+          "absolute_enrichment_bases": 8.955209191959108,
+          "read_level_enrichment": 16.24958744848994
+        },
+        "classification": {
+          "human_ejected": 442417,
+          "human_missed": 23404,
+          "pathogen_kept": 4489,
+          "pathogen_ejected": 163,
+          "strands_too_short_to_decide": 53712
+        },
+        "timestamp": "2026-10-10T05:17:07.882512"
+      }
+    },
+    "H3_sensitivity": [
+      {
+        "capture_s": 0.5,
+        "unblock_s": 0.1,
+        "pathogen_lengths": "empirical",
+        "relative_enrichment_bases": 13.884270756263003,
+        "absolute_enrichment_bases": 11.593731365681345,
+        "read_level_enrichment": 15.04350489326363,
+        "adaptive_pathogen_share": 0.039941842724985376,
+        "control_pathogen_share": 0.002876769217927284
+      },
+      {
+        "capture_s": 0.5,
+        "unblock_s": 0.1,
+        "pathogen_lengths": "equal",
+        "relative_enrichment_bases": 10.597325931694776,
+        "absolute_enrichment_bases": 8.955209191959108,
+        "read_level_enrichment": 16.24958744848994,
+        "adaptive_pathogen_share": 0.10673402220100892,
+        "control_pathogen_share": 0.01007178819345226
+      },
+      {
+        "capture_s": 0.5,
+        "unblock_s": 0.5,
+        "pathogen_lengths": "empirical",
+        "relative_enrichment_bases": 13.692254009353698,
+        "absolute_enrichment_bases": 10.369878488834548,
+        "read_level_enrichment": 15.060491031912415,
+        "adaptive_pathogen_share": 0.03938945485815015,
+        "control_pathogen_share": 0.002876769217927284
+      },
+      {
+        "capture_s": 0.5,
+        "unblock_s": 0.5,
+        "pathogen_lengths": "equal",
+        "relative_enrichment_bases": 10.557672114635853,
+        "absolute_enrichment_bases": 8.142429899893532,
+        "read_level_enrichment": 16.278542555770333,
+        "adaptive_pathogen_share": 0.10633463735452953,
+        "control_pathogen_share": 0.01007178819345226
+      },
+      {
+        "capture_s": 0.5,
+        "unblock_s": 1.0,
+        "pathogen_lengths": "empirical",
+        "relative_enrichment_bases": 13.567094848965823,
+        "absolute_enrichment_bases": 9.218841009276415,
+        "read_level_enrichment": 14.886404044942742,
+        "adaptive_pathogen_share": 0.03902940083820469,
+        "control_pathogen_share": 0.002876769217927284
+      },
+      {
+        "capture_s": 0.5,
+        "unblock_s": 1.0,
+        "pathogen_lengths": "equal",
+        "relative_enrichment_bases": 10.477480055036386,
+        "absolute_enrichment_bases": 7.294274029523833,
+        "read_level_enrichment": 16.187543367699337,
+        "adaptive_pathogen_share": 0.105526959915447,
+        "control_pathogen_share": 0.01007178819345226
+      },
+      {
+        "capture_s": 2.0,
+        "unblock_s": 0.1,
+        "pathogen_lengths": "empirical",
+        "relative_enrichment_bases": 12.893549169602721,
+        "absolute_enrichment_bases": 7.765081863829966,
+        "read_level_enrichment": 14.314124335857068,
+        "adaptive_pathogen_share": 0.03706415730459419,
+        "control_pathogen_share": 0.002874627987767329
+      },
+      {
+        "capture_s": 2.0,
+        "unblock_s": 0.1,
+        "pathogen_lengths": "equal",
+        "relative_enrichment_bases": 9.736464395222775,
+        "absolute_enrichment_bases": 6.032828667602034,
+        "read_level_enrichment": 15.749897378365727,
+        "adaptive_pathogen_share": 0.1036095091922946,
+        "control_pathogen_share": 0.010641389418846015
+      },
+      {
+        "capture_s": 2.0,
+        "unblock_s": 0.5,
+        "pathogen_lengths": "empirical",
+        "relative_enrichment_bases": 13.063558325124706,
+        "absolute_enrichment_bases": 7.346404627501255,
+        "read_level_enrichment": 14.420830187423434,
+        "adaptive_pathogen_share": 0.03755287038123437,
+        "control_pathogen_share": 0.002874627987767329
+      },
+      {
+        "capture_s": 2.0,
+        "unblock_s": 0.5,
+        "pathogen_lengths": "equal",
+        "relative_enrichment_bases": 9.753989285331057,
+        "absolute_enrichment_bases": 5.665431461257095,
+        "read_level_enrichment": 15.702026525990279,
+        "adaptive_pathogen_share": 0.10379599837245931,
+        "control_pathogen_share": 0.010641389418846015
+      },
+      {
+        "capture_s": 2.0,
+        "unblock_s": 1.0,
+        "pathogen_lengths": "empirical",
+        "relative_enrichment_bases": 12.873138622353975,
+        "absolute_enrichment_bases": 6.691968955356185,
+        "read_level_enrichment": 14.279717598977324,
+        "adaptive_pathogen_share": 0.037005484574227296,
+        "control_pathogen_share": 0.002874627987767329
+      },
+      {
+        "capture_s": 2.0,
+        "unblock_s": 1.0,
+        "pathogen_lengths": "equal",
+        "relative_enrichment_bases": 9.66195718140762,
+        "absolute_enrichment_bases": 5.198132103068875,
+        "read_level_enrichment": 15.701612934411461,
+        "adaptive_pathogen_share": 0.10281664891557431,
+        "control_pathogen_share": 0.010641389418846015
+      },
+      {
+        "capture_s": 5.0,
+        "unblock_s": 0.1,
+        "pathogen_lengths": "empirical",
+        "relative_enrichment_bases": 12.378970899802473,
+        "absolute_enrichment_bases": 4.967827925696658,
+        "read_level_enrichment": 14.64932697190214,
+        "adaptive_pathogen_share": 0.03696348409118981,
+        "control_pathogen_share": 0.0029859900625325508
+      },
+      {
+        "capture_s": 5.0,
+        "unblock_s": 0.1,
+        "pathogen_lengths": "equal",
+        "relative_enrichment_bases": 10.278968299916105,
+        "absolute_enrichment_bases": 4.313798003714612,
+        "read_level_enrichment": 16.702794180681988,
+        "adaptive_pathogen_share": 0.10425720928233252,
+        "control_pathogen_share": 0.010142769803384202
+      },
+      {
+        "capture_s": 5.0,
+        "unblock_s": 0.5,
+        "pathogen_lengths": "empirical",
+        "relative_enrichment_bases": 12.460430854078004,
+        "absolute_enrichment_bases": 4.7909945632318935,
+        "read_level_enrichment": 14.702760730093098,
+        "adaptive_pathogen_share": 0.0372067227051509,
+        "control_pathogen_share": 0.0029859900625325508
+      },
+      {
+        "capture_s": 5.0,
+        "unblock_s": 0.5,
+        "pathogen_lengths": "equal",
+        "relative_enrichment_bases": 10.314220350372478,
+        "absolute_enrichment_bases": 4.149572525465782,
+        "read_level_enrichment": 16.731158601865907,
+        "adaptive_pathogen_share": 0.10461476271520881,
+        "control_pathogen_share": 0.010142769803384202
+      },
+      {
+        "capture_s": 5.0,
+        "unblock_s": 1.0,
+        "pathogen_lengths": "empirical",
+        "relative_enrichment_bases": 12.636442279481905,
+        "absolute_enrichment_bases": 4.614154146851342,
+        "read_level_enrichment": 14.565315460891519,
+        "adaptive_pathogen_share": 0.03773229107229914,
+        "control_pathogen_share": 0.0029859900625325508
+      },
+      {
+        "capture_s": 5.0,
+        "unblock_s": 1.0,
+        "pathogen_lengths": "equal",
+        "relative_enrichment_bases": 10.299959093855039,
+        "absolute_enrichment_bases": 3.9395688369237356,
+        "read_level_enrichment": 16.700799216188905,
+        "adaptive_pathogen_share": 0.1044701140732454,
+        "control_pathogen_share": 0.010142769803384202
+      }
+    ]
+  }
+}
