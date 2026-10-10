@@ -78,3 +78,17 @@ def test_pipeline_smoke(data, tmp_path):
                         "--n-pathogen-per-species", "30", "--sim-duration", "120"],
                        capture_output=True, text=True, cwd=str(tmp_path), env=env)
     assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+
+def test_diagnostics_resume(data, tmp_path):
+    """With a tiny budget the run stops (exit 3) and later calls finish it."""
+    out = tmp_path / "diag_resume"
+    cmd = [sys.executable, os.path.join(ROOT, "diagnostics.py"), "--data", data, "--out", str(out),
+           "--n-human", "80", "--n-per-species", "30", "--sim-duration", "300", "--budget", "4"]
+    codes = []
+    for _ in range(60):
+        r = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT)
+        codes.append(r.returncode)
+        if r.returncode != 3:
+            break
+    assert codes[0] == 3 and codes[-1] == 0, (codes, r.stdout[-1500:], r.stderr[-1500:])
+    assert "G_simulation" in json.load(open(out / "diagnostics.json"))

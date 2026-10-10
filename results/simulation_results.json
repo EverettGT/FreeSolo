@@ -6,8 +6,8 @@
     "capture_s": 0.5,
     "unblock_s": 0.1,
     "decision_samples": 5500,
-    "decision_time_s": 1.1055993150166596,
-    "latency_ms": 5.599315016659527,
+    "decision_time_s": 1.1053484565833174,
+    "latency_ms": 5.348456583317329,
     "threshold": 0.5,
     "sampling_rate_hz": 5000,
     "samples_per_base": 12.5,
@@ -28,36 +28,36 @@
     "too_short": 0.0
   },
   "adaptive": {
-    "h_captured": 34922.0,
-    "p_captured": 360.0,
-    "h_ejected": 34922.0,
+    "h_captured": 34941.0,
+    "p_captured": 346.0,
+    "h_ejected": 34941.0,
     "h_missed": 0.0,
     "p_ejected": 0.0,
-    "p_kept": 360.0,
-    "h_samples": 191128170.7348014,
-    "p_samples": 9425805.785092216,
-    "decided": 35282.0,
+    "p_kept": 346.0,
+    "h_samples": 191247622.90338433,
+    "p_samples": 9081807.133274825,
+    "decided": 35287.0,
     "too_short": 0.0
   },
   "bases": {
     "control_pathogen_bases": 229959.1338499604,
-    "adaptive_pathogen_bases": 754064.4628073773,
+    "adaptive_pathogen_bases": 726544.570661986,
     "control_total_bases": 22418870.236292936,
-    "adaptive_total_bases": 16044318.12159149,
+    "adaptive_total_bases": 16026354.402932731,
     "control_pathogen_share": 0.010257391716273444,
-    "adaptive_pathogen_share": 0.046998847635201284
+    "adaptive_pathogen_share": 0.0453343631617826
   },
   "enrichment": {
-    "relative_enrichment_bases": 4.581949187007959,
-    "absolute_enrichment_bases": 3.279123773789197,
+    "relative_enrichment_bases": 4.419677479008549,
+    "absolute_enrichment_bases": 3.1594508054462787,
     "read_level_enrichment": 101.4811320754717
   },
   "classification": {
-    "human_ejected": 34922,
+    "human_ejected": 34941,
     "human_missed": 0,
-    "pathogen_kept": 360,
+    "pathogen_kept": 346,
     "pathogen_ejected": 0,
     "strands_too_short_to_decide": 0
   },
-  "timestamp": "2026-10-10T00:46:27.049104"
+  "timestamp": "2026-10-10T00:52:39.277329"
 }
