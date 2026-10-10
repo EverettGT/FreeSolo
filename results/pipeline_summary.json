@@ -1,21 +1,23 @@
 {
-  "accuracy": 0.9670666666666666,
-  "precision": 0.970453934998657,
-  "recall": 0.9634666666666667,
-  "f1": 0.9669476783085775,
-  "auc_roc": 0.9950467555555554,
+  "accuracy": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1": 1.0,
+  "auc_roc": 1.0,
   "ci_95": [
-    0.9217543531073736,
-    0.9352456468926263
+    0.9104154862885597,
+    1.00958451371144
   ],
-  "latency_ms": 6.768748003523797,
-  "enrichment": 25.142121366649665,
-  "n_human": 50000,
-  "n_pathogen": 50000,
+  "latency_ms": 5.053839299999178,
+  "enrichment_relative_bases": 4.581949187007959,
+  "split": "flowcell",
+  "test_flowcell": "PAO98633",
+  "n_human": 120,
+  "n_pathogen": 120,
   "species_ratio": "1:1:1:1 (equal: S.aureus:E.coli:P.aeruginosa:K.pneumoniae)",
-  "pipeline_seconds": 4002.223878145218,
-  "human_source": "GIAB HG002/HG003/HG004 R10.4.1 (ONT open data)",
-  "pathogen_source": "S.aureus/K.pneumoniae/P.aeruginosa/E.coli R10.4.1 (ENA PRJEB51164)",
-  "holdout_mean_auc_roc": 0.9923072413333334,
-  "holdout_mean_recall": 0.9390399999999999
+  "pipeline_seconds": 11.781478881835938,
+  "human_source": "GIAB HG002/HG003/HG004, FLO-PRO114M R10.4.1, SQK-LSK114, PromethION, 5 kHz (ONT open data)",
+  "pathogen_source": "S.aureus/K.pneumoniae/P.aeruginosa/E.coli, FLO-MIN114 R10.4.1, SQK-RBK114-96, GridION, 5 kHz, one flow cell (ENA PRJEB51164)",
+  "holdout_mean_auc_roc": 0.9974999999999999,
+  "holdout_mean_recall": 0.9416666666666667
 }

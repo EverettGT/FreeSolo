@@ -6,6 +6,17 @@ Usage:
   python run_pipeline.py --n-human 50000 --n-pathogen 50000
   python run_pipeline.py --skip-sim
   python run_pipeline.py --skip-holdout
+  python run_pipeline.py --split read        # original read-level split
+
+Revision notes (Oct 2026):
+  * default split holds out one human flow cell for testing (--split flowcell);
+    the pathogen class comes from a single flow cell and cannot be grouped,
+    which is a limitation reported in the paper
+  * per-read provenance (read ID, flow cell, run, kit) saved to results/reads.csv
+  * deterministic fold seeds (the old code used Python's salted hash())
+  * cross-validation uses the same MLP configuration as the reported model
+  * ReadUntil simulation uses empirical read lengths and a real control run
+  * for confound checks see diagnostics.py
 """
 
 import sys, os, json, time, argparse
@@ -15,10 +26,11 @@ import random
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from real_data_loader import load_dataset, load_pod5_reads, get_default_paths, SPECIES, _preprocess_read
-from classifier import VSIClassifier
+from real_data_loader import (load_dataset, load_pod5_reads, load_human_reads as _load_human,
+                              get_default_paths, SPECIES, save_read_table)
+from classifier import FreeSoloClassifier
 from readuntil_sim import ReadUntilSimulator
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
 from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import (accuracy_score, precision_score, recall_score,
                              f1_score, roc_auc_score, confusion_matrix,
@@ -45,59 +57,42 @@ def parse_args():
     p.add_argument("--seed",                   type=int, default=42)
     p.add_argument("--skip-sim",               action="store_true")
     p.add_argument("--skip-holdout",           action="store_true")
+    p.add_argument("--split", choices=["flowcell", "read"], default="flowcell",
+                   help="flowcell: test human reads come from a held-out flow cell")
+    p.add_argument("--test-flowcell", default="PAO98633",
+                   help="human flow cell held out for testing (default: HG004 run)")
+    p.add_argument("--sim-duration", type=int, default=3600)
     return p.parse_args()
 
 
 def load_human_reads(human_pod5_dir, n_human, seed):
-    import pod5 as _pod5
-
-    human_files = sorted(glob.glob(os.path.join(human_pod5_dir, "*.pod5")))
-    if not human_files:
-        raise FileNotFoundError(f"No POD5 files in: {human_pod5_dir}")
-
-    print(f"\nLoading {n_human:,} human reads from {len(human_files)} POD5 files...")
-    rng = random.Random(seed)
-    rng.shuffle(human_files)
-    signals, n_rejected = [], 0
-
-    for fpath in human_files:
-        if len(signals) >= n_human:
-            break
-        try:
-            with _pod5.Reader(fpath) as reader:
-                read_ids = list(reader.read_ids)
-                rng.shuffle(read_ids)
-                for rid in read_ids:
-                    if len(signals) >= n_human:
-                        break
-                    try:
-                        rec = next(reader.reads([rid]))
-                        proc = _preprocess_read(rec.signal_pa)
-                        if proc is not None:
-                            signals.append(proc)
-                        else:
-                            n_rejected += 1
-                    except Exception:
-                        n_rejected += 1
-        except Exception as e:
-            print(f"  Warning: {fpath}: {e}")
-
-    X_h = np.stack(signals[:n_human])
-    print(f"  Loaded: {len(X_h):,}  Rejected: {n_rejected:,}")
-    return X_h
+    """Equal per-file quotas; returns (X, provenance list)."""
+    wins, meta, rej = _load_human(human_pod5_dir, n_human, seed)
+    X_h = wins[1500]
+    print(f"  Loaded: {len(X_h):,}  Rejected: {rej:,}")
+    return X_h, meta
 
 
-def run_holdout_fold(held_out, X_human, species_data, seed, fold_dir):
+def run_holdout_fold(held_out, X_human, species_data, seed, fold_dir,
+                     human_flowcells=None, test_flowcell=None):
     display = SPECIES_DISPLAY[held_out]
     print(f"\n{'='*70}\nFOLD: Hold out {display}\n{'='*70}")
 
-    fold_seed = seed + hash(held_out) % (2**16)
+    # deterministic per-fold seed (hash() of a str is salted per process)
+    fold_seed = seed + 1000 * (list(SPECIES).index(held_out) + 1)
     rng = np.random.RandomState(fold_seed)
 
-    n_test_human = int(len(X_human) * 0.15)
-    all_idx = rng.permutation(len(X_human))
-    test_human_idx  = all_idx[:n_test_human]
-    train_human_idx = all_idx[n_test_human:]
+    if human_flowcells is not None and test_flowcell is not None:
+        # human test reads come from a flow cell never seen in training
+        fc = np.asarray(human_flowcells)
+        test_human_idx  = rng.permutation(np.where(fc == test_flowcell)[0])
+        train_human_idx = np.where(fc != test_flowcell)[0]
+        n_test_human = len(test_human_idx)
+    else:
+        n_test_human = int(len(X_human) * 0.15)
+        all_idx = rng.permutation(len(X_human))
+        test_human_idx  = all_idx[:n_test_human]
+        train_human_idx = all_idx[n_test_human:]
 
     assert len(np.intersect1d(train_human_idx, test_human_idx)) == 0
 
@@ -133,7 +128,7 @@ def run_holdout_fold(held_out, X_human, species_data, seed, fold_dir):
     print(f"  Train: {len(y_train):,}  (human={int(np.sum(y_train==0)):,}  pathogen={int(np.sum(y_train==1)):,})")
 
     t0 = time.time()
-    clf = VSIClassifier(hidden_layers=(256, 128, 64), max_iter=500, random_state=seed)
+    clf = FreeSoloClassifier(hidden_layers=(256, 128, 64), max_iter=500, random_state=seed)
     history = clf.train(X_train, y_train)
     train_time = time.time() - t0
     print(f"  Training time: {train_time:.0f}s")
@@ -240,24 +235,42 @@ def main():
         n_human=args.n_human, n_pathogen=args.n_pathogen,
         seed=args.seed)
 
+    reads = load_meta.pop("reads")
     np.save(os.path.join(data_dir, "signals.npy"), X)
     np.save(os.path.join(data_dir, "labels.npy"),  y)
     with open(os.path.join(data_dir, "load_metadata.json"), "w") as f:
         json.dump(load_meta, f, indent=2)
+    save_read_table(reads, os.path.join(results_dir, "reads.csv"))
+    flowcell = np.array([r["flow_cell"] for r in reads])
+    raw_len  = np.array([r["raw_len"] for r in reads])
 
     print(f"\n  Final dataset: {X.shape[0]:,} reads, window={X.shape[1]}")
     print(f"  Human:         {int(np.sum(y==0)):,}")
     print(f"  Pathogen:      {int(np.sum(y==1)):,}")
 
-    print("\n" + "="*70 + "\nSTEP 2: Train/Val/Test Split (70/15/15)\n" + "="*70)
-    X_tv,    X_test,  y_tv,    y_test  = train_test_split(
-        X, y, test_size=0.15, random_state=args.seed, stratify=y)
-    X_train, X_val,   y_train, y_val   = train_test_split(
-        X_tv, y_tv, test_size=0.15/0.85, random_state=args.seed, stratify=y_tv)
+    idx_all = np.arange(len(y))
+    if args.split == "flowcell":
+        print("\n" + "="*70 + f"\nSTEP 2: Split (human test = held-out flow cell {args.test_flowcell})\n" + "="*70)
+        h_test = idx_all[(y == 0) & (flowcell == args.test_flowcell)]
+        h_rest = idx_all[(y == 0) & (flowcell != args.test_flowcell)]
+        p_all  = np.random.RandomState(args.seed).permutation(idx_all[y == 1])
+        n_pt   = len(h_test)
+        p_test, p_rest = p_all[:n_pt], p_all[n_pt:]
+        test_idx = np.concatenate([h_test, p_test])
+        rest_idx = np.concatenate([h_rest, p_rest])
+        tr_idx, va_idx = train_test_split(rest_idx, test_size=0.15/0.85,
+                                          random_state=args.seed, stratify=y[rest_idx])
+    else:
+        print("\n" + "="*70 + "\nSTEP 2: Train/Val/Test Split (70/15/15, read-level)\n" + "="*70)
+        tv_idx, test_idx = train_test_split(idx_all, test_size=0.15, random_state=args.seed, stratify=y)
+        tr_idx, va_idx = train_test_split(tv_idx, test_size=0.15/0.85, random_state=args.seed, stratify=y[tv_idx])
+    X_train, y_train = X[tr_idx], y[tr_idx]
+    X_val,   y_val   = X[va_idx], y[va_idx]
+    X_test,  y_test  = X[test_idx], y[test_idx]
     print(f"  Train: {len(y_train):,}  Val: {len(y_val):,}  Test: {len(y_test):,}")
 
     print("\n" + "="*70 + "\nSTEP 3: Training\n" + "="*70)
-    clf = VSIClassifier(hidden_layers=(256, 128, 64), max_iter=500, random_state=args.seed)
+    clf = FreeSoloClassifier(hidden_layers=(256, 128, 64), max_iter=500, random_state=args.seed)
     history = clf.train(X_train, y_train, X_val, y_val)
     save_history = dict(history)
     save_history["loss_curve"] = [float(x) for x in history["loss_curve"]]
@@ -277,14 +290,18 @@ def main():
         len(y_train), size=min(10000, len(y_train)), replace=False)
     X_cv_feat = clf.feature_extractor.extract_features(X_train[cv_idx])
     y_cv      = y_train[cv_idx]
+    # same MLP configuration as the reported model (the original CV used
+    # max_iter=300, default batch size and a constant learning rate)
     cv_pipeline = Pipeline([
         ("scaler", StandardScaler()),
         ("mlp", MLPClassifier(
             hidden_layer_sizes=(256, 128, 64), activation="relu",
-            solver="adam", alpha=1e-4, max_iter=300,
-            random_state=args.seed, early_stopping=True)),
+            solver="adam", alpha=1e-4, batch_size=64, learning_rate="adaptive",
+            learning_rate_init=1e-3, max_iter=500, random_state=args.seed,
+            early_stopping=True, validation_fraction=0.1, n_iter_no_change=20)),
     ])
-    cv_scores = cross_val_score(cv_pipeline, X_cv_feat, y_cv, cv=10, scoring="accuracy")
+    cv_scores = cross_val_score(cv_pipeline, X_cv_feat, y_cv, scoring="accuracy",
+                                cv=StratifiedKFold(10, shuffle=True, random_state=args.seed))
     cv_mean, cv_std = float(np.mean(cv_scores)), float(np.std(cv_scores))
     ci_lo = cv_mean - 1.96 * cv_std / np.sqrt(10)
     ci_hi = cv_mean + 1.96 * cv_std / np.sqrt(10)
@@ -298,13 +315,14 @@ def main():
     enrichment_factor = None
     if not args.skip_sim:
         print("\n" + "="*70 + "\nSTEP 6: ReadUntil Simulation\n" + "="*70)
-        simulator = ReadUntilSimulator(
-            classifier=clf, data_generator=None,
-            n_pores=256, human_fraction=0.99)
+        simulator = ReadUntilSimulator(classifier=clf, n_pores=512, human_fraction=0.99,
+                                       seed=args.seed)
         sim_results = simulator.run_simulation_from_arrays(
-            X_test, y_test, duration_seconds=600)
+            X_test, y_test, duration_seconds=args.sim_duration,
+            len_human=raw_len[test_idx][y_test == 0],
+            len_pathogen=raw_len[test_idx][y_test == 1])
         simulator.save_results(sim_results, results_dir)
-        enrichment_factor = sim_results["enrichment"]["enrichment_factor"]
+        enrichment_factor = sim_results["enrichment"]["relative_enrichment_bases"]
     else:
         print("\nSTEP 6: Skipped (--skip-sim)")
 
@@ -313,7 +331,8 @@ def main():
         os.makedirs(holdout_dir, exist_ok=True)
 
         print("\n  Loading human reads for holdout folds...")
-        X_human_ho = load_human_reads(human_dir, args.n_human, args.seed)
+        X_human_ho, human_meta_ho = load_human_reads(human_dir, args.n_human, args.seed)
+        human_fc_ho = [m["flow_cell"] for m in human_meta_ho] if args.split == "flowcell" else None
 
         print("\n  Loading per-species pathogen reads...")
         species_data = {}
@@ -330,7 +349,9 @@ def main():
             fold_dir = os.path.join(holdout_dir, f"fold_{held_out}")
             os.makedirs(os.path.join(fold_dir, "models"), exist_ok=True)
             result = run_holdout_fold(
-                held_out, X_human_ho, species_data, args.seed, fold_dir)
+                held_out, X_human_ho, species_data, args.seed, fold_dir,
+                human_flowcells=human_fc_ho,
+                test_flowcell=args.test_flowcell if human_fc_ho else None)
             holdout_results.append(result)
 
         aucs    = [r["auc_roc"]  for r in holdout_results]
@@ -381,7 +402,7 @@ def main():
     print(f"  95% CI:     [{ci_lo:.4f}, {ci_hi:.4f}]")
     print(f"  Latency:    {metrics['latency']['mean_ms']:.2f} ms (mean)")
     if enrichment_factor:
-        print(f"  Enrichment: {enrichment_factor:.1f}x")
+        print(f"  Relative enrichment (bases): {enrichment_factor:.2f}x")
     if holdout_summary:
         print(f"  Holdout AUC (mean): {holdout_summary['aggregate']['mean_auc_roc']:.4f}")
 
@@ -393,7 +414,9 @@ def main():
         "auc_roc":          metrics["auc_roc"],
         "ci_95":            [ci_lo, ci_hi],
         "latency_ms":       metrics["latency"]["mean_ms"],
-        "enrichment":       enrichment_factor,
+        "enrichment_relative_bases": enrichment_factor,
+        "split":            args.split,
+        "test_flowcell":    args.test_flowcell if args.split == "flowcell" else None,
         "n_human":          int(np.sum(y==0)),
         "n_pathogen":       int(np.sum(y==1)),
         "species_ratio":    load_meta["species_ratio"],
