@@ -62,6 +62,8 @@ def parse_args():
     p.add_argument("--test-flowcell", default="PAO98633",
                    help="human flow cell held out for testing (default: HG004 run)")
     p.add_argument("--sim-duration", type=int, default=3600)
+    p.add_argument("--out-dir", default=None,
+                   help="where data/, models/ and results/ are written (default: repository folder)")
     return p.parse_args()
 
 
@@ -216,6 +218,7 @@ def main():
     pathogen_dir = args.pathogen_dir or default_pathogen
 
     base         = os.path.dirname(os.path.abspath(__file__))
+    base         = args.out_dir or base
     data_dir     = os.path.join(base, "data")
     model_dir    = os.path.join(base, "models")
     results_dir  = os.path.join(base, "results")

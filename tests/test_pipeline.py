@@ -75,9 +75,11 @@ def test_pipeline_smoke(data, tmp_path):
     env = dict(os.environ)
     r = subprocess.run([sys.executable, os.path.join(ROOT, "run_pipeline.py"), "--human-dir", f"{data}/human",
                         "--pathogen-dir", f"{data}/pathogen", "--n-human", "120", "--n-pathogen", "120",
-                        "--n-pathogen-per-species", "30", "--sim-duration", "120"],
+                        "--n-pathogen-per-species", "30", "--sim-duration", "120",
+                        "--out-dir", str(tmp_path)],
                        capture_output=True, text=True, cwd=str(tmp_path), env=env)
     assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert (tmp_path / "results" / "pipeline_summary.json").exists()
 
 def test_diagnostics_resume(data, tmp_path):
     """With a tiny budget the run stops (exit 3) and later calls finish it."""

@@ -1,63 +1,39 @@
 {
   "simulation_params": {
-    "n_pores": 512,
+    "n_pores": 256,
     "human_fraction": 0.99,
-    "duration_seconds": 120,
-    "capture_s": 0.5,
-    "unblock_s": 0.1,
-    "decision_samples": 5500,
-    "decision_time_s": 1.1052638611999972,
-    "latency_ms": 5.2638611999971845,
-    "threshold": 0.5,
+    "duration_seconds": 600,
+    "signal_source": "real_held_out_test_set",
     "sampling_rate_hz": 5000,
-    "samples_per_base": 12.5,
-    "mean_len_human_bases": 2134.525333333333,
-    "mean_len_pathogen_bases": 2163.64,
-    "seed": 42
+    "sampling_method": "random_without_replacement_with_reshuffle"
   },
-  "control": {
-    "h_captured": 10651.0,
-    "p_captured": 106.0,
-    "h_ejected": 0.0,
-    "h_missed": 0.0,
-    "p_ejected": 0.0,
-    "p_kept": 0.0,
-    "h_samples": 277361388.7805372,
-    "p_samples": 2874489.173124505,
-    "decided": 0.0,
-    "too_short": 0.0
-  },
-  "adaptive": {
-    "h_captured": 34941.0,
-    "p_captured": 346.0,
-    "h_ejected": 34941.0,
-    "h_missed": 0.0,
-    "p_ejected": 0.0,
-    "p_kept": 346.0,
-    "h_samples": 191251613.89200574,
-    "p_samples": 9088553.756768515,
-    "decided": 35287.0,
-    "too_short": 0.0
-  },
-  "bases": {
-    "control_pathogen_bases": 229959.1338499604,
-    "adaptive_pathogen_bases": 727084.3005414812,
-    "control_total_bases": 22418870.236292936,
-    "adaptive_total_bases": 16027213.411901942,
-    "control_pathogen_share": 0.010257391716273444,
-    "adaptive_pathogen_share": 0.04536560922072345
-  },
-  "enrichment": {
-    "relative_enrichment_bases": 4.422723678257358,
-    "absolute_enrichment_bases": 3.161797874120869,
-    "read_level_enrichment": 101.4811320754717
+  "strand_counts": {
+    "total": 51672,
+    "human": 51192,
+    "pathogen": 480
   },
   "classification": {
-    "human_ejected": 34941,
-    "human_missed": 0,
-    "pathogen_kept": 346,
-    "pathogen_ejected": 0,
-    "strands_too_short_to_decide": 0
+    "human_correctly_unblocked": 49623,
+    "human_missed": 1503,
+    "pathogen_correctly_sequenced": 458,
+    "pathogen_incorrectly_ejected": 21,
+    "unblock_accuracy": 0.9706020420138481
   },
-  "timestamp": "2026-10-10T01:05:45.064390"
+  "efficiency": {
+    "bases_sequenced_vsi": 255437450,
+    "bases_sequenced_baseline": 237160000,
+    "bases_saved": -18277450,
+    "percentage_saved": -7.706801315567549
+  },
+  "enrichment": {
+    "original_pathogen_pct": 0.9289363678588017,
+    "enriched_pathogen_pct": 23.355430902600713,
+    "enrichment_factor": 25.142121366649665
+  },
+  "latency": {
+    "mean_ms": 5.460663068000197,
+    "median_ms": 4.918849910609424,
+    "p95_ms": 8.478425035718828
+  },
+  "timestamp": "2026-05-28T12:58:13.820821"
 }
