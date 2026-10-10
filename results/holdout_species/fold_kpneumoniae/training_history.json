@@ -25,8 +25,8 @@
     0.0005363104452941042
   ],
   "n_iterations": 23,
-  "feature_extraction_time": 0.8849663734436035,
-  "training_time": 0.20345091819763184,
+  "feature_extraction_time": 0.8437426090240479,
+  "training_time": 0.20270490646362305,
   "n_features": 280,
   "n_train_samples": 180,
   "train_accuracy": 1.0

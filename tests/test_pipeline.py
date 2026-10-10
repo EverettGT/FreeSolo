@@ -66,7 +66,7 @@ def test_diagnostics_smoke(data, tmp_path):
                         "--sim-duration", "300"], capture_output=True, text=True, cwd=ROOT)
     assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-3000:]
     res = json.load(open(out / "diagnostics.json"))
-    for k in ["A_offset_sweep", "B_batch_probes", "C_positive_control", "E_multi_chunk", "F_latency_ms", "G_simulation"]:
+    for k in ["A_offset_sweep", "B_batch_probes", "C_positive_control", "E_multi_chunk", "F_latency_ms", "G_simulation", "H_main"]:
         assert k in res
     # synthetic pathogen reads have a shifted first 1,500 samples: offset 0 should be easiest
     assert res["A_offset_sweep"]["0"]["auc"] >= res["A_offset_sweep"]["9500"]["auc"] - 0.05
@@ -83,7 +83,7 @@ def test_diagnostics_resume(data, tmp_path):
     """With a tiny budget the run stops (exit 3) and later calls finish it."""
     out = tmp_path / "diag_resume"
     cmd = [sys.executable, os.path.join(ROOT, "diagnostics.py"), "--data", data, "--out", str(out),
-           "--n-human", "80", "--n-per-species", "30", "--sim-duration", "300", "--budget", "4"]
+           "--n-human", "80", "--n-per-species", "30", "--sim-duration", "300", "--budget", "4", "--n-main-human", "80", "--n-main-per-species", "30", "--n-length-survey", "200"]
     codes = []
     for _ in range(60):
         r = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT)

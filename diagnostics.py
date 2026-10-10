@@ -118,6 +118,11 @@ def main():
     ap.add_argument("--test-flowcell", default="PAO98633")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--sim-duration", type=int, default=3600)
+    ap.add_argument("--n-main-human", type=int, default=12000,
+                    help="H: reads for the main (standard-window) evaluation")
+    ap.add_argument("--n-main-per-species", type=int, default=3000)
+    ap.add_argument("--n-length-survey", type=int, default=20000,
+                    help="reads per class surveyed for read-length distributions")
     ap.add_argument("--budget", type=float, default=None,
                     help="stop before this many seconds; rerun to resume")
     a = ap.parse_args()
@@ -362,6 +367,151 @@ def main():
                     duration_seconds=a.sim_duration, verbose=False),
                 "note": "diagnostic reads are restricted to >= 13,500 samples; the main pipeline simulation uses unrestricted lengths",
             }
+            dump()
+
+        # ------------------------------------------- H main evaluation
+        # Standard preprocessing (one 4,000-sample window after the 1,500-sample
+        # skip, no long-read restriction), larger sample, every human flow cell
+        # held out in turn, species holdout with an unseen human flow cell, and
+        # the ReadUntil simulation with unrestricted read lengths.
+        mains = ["human"] + list(SPECIES)
+        for g in mains:
+            fn = os.path.join(cache, f"main_{g}.npz")
+            if os.path.exists(fn):
+                continue
+            need(120)
+            t0 = time.time()
+            if g == "human":
+                w, m, rej = load_human_reads(os.path.join(a.data, "human"), a.n_main_human,
+                                             a.seed + 1, (1500,), WINDOW, 0)
+            else:
+                w, m, rej = sample_pod5(os.path.join(a.data, "pathogen", SPECIES[g]["file"]),
+                                        a.n_main_per_species, random.Random(a.seed + 1), g,
+                                        (1500,), WINDOW, 0)
+                w = {1500: np.stack(w[1500])}
+            np.savez(fn, x=w[1500])
+            json.dump({"meta": m, "rejected": rej}, open(fn.replace(".npz", ".json"), "w"))
+            log(f"H loaded {g}: {len(m)} (rejected {rej}) in {time.time()-t0:.0f}s")
+
+        hmeta, hrej = [], {}
+        for g in mains:
+            j = json.load(open(os.path.join(cache, f"main_{g}.json")))
+            hmeta += j["meta"]
+            hrej[g] = j["rejected"]
+        hy = np.array([0 if m["source"] == "human" else 1 for m in hmeta])
+        hfc = np.array([m["flow_cell"] for m in hmeta])
+        hsrc = np.array([m["source"] for m in hmeta])
+
+        # features in chunks so each step fits a short session
+        CH = 3000
+        n_chunks = int(np.ceil(len(hy) / CH))
+        for i in range(n_chunks):
+            fn = os.path.join(cache, f"main_feat_{i}.npy")
+            if os.path.exists(fn):
+                continue
+            need(5e-3 * CH + 10)
+            X = np.concatenate([np.load(os.path.join(cache, f"main_{g}.npz"))["x"] for g in mains])
+            np.save(fn, fe.extract_features(X[i * CH:(i + 1) * CH]))
+            del X
+            log(f"H features chunk {i+1}/{n_chunks}")
+        HF = np.concatenate([np.load(os.path.join(cache, f"main_feat_{i}.npy")) for i in range(n_chunks)])
+
+        if "H_main" not in R:
+            save_read_table(hmeta, os.path.join(a.out, "reads_main.csv"))
+            R["H_main"] = {"data": {
+                "n_human": int((hy == 0).sum()), "n_pathogen": int((hy == 1).sum()),
+                "human_per_flowcell": {f: int(((hfc == f) & (hy == 0)).sum()) for f in sorted(set(hfc[hy == 0]))},
+                "species_counts": {s_: int((hsrc == s_).sum()) for s_ in SPECIES},
+                "rejected": hrej}}
+            dump()
+        H = R["H_main"]
+
+        # H1: each human flow cell held out once; pathogen reads split into
+        # three species-stratified parts, one part tested per fold
+        rng_h = np.random.RandomState(a.seed + 7)
+        part = np.full(len(hy), -1)
+        for s_ in SPECIES:
+            idx = rng_h.permutation(np.where(hsrc == s_)[0])
+            for k, chunk in enumerate(np.array_split(idx, 3)):
+                part[chunk] = k
+        human_fcs = sorted(set(hfc[hy == 0]))
+        H.setdefault("H1_flowcell_folds", {})
+        for k, f in enumerate(human_fcs):
+            if f in H["H1_flowcell_folds"]:
+                continue
+            need(90)
+            te_h = ((hy == 0) & (hfc == f)) | ((hy == 1) & (part == k))
+            p, mdl = fit_predict_features(HF[~te_h], hy[~te_h], HF[te_h], a.seed)
+            H["H1_flowcell_folds"][f] = summarize(hy[te_h], p)
+            if f == a.test_flowcell:
+                pickle.dump((te_h, p, mdl), open(os.path.join(cache, "main_model.pkl"), "wb"))
+            log(f"H1 held-out human flow cell {f}: AUC {H['H1_flowcell_folds'][f]['auc']:.4f} "
+                f"acc {H['H1_flowcell_folds'][f]['accuracy']:.4f}")
+            dump()
+        if "H1_mean" not in H and len(H["H1_flowcell_folds"]) == len(human_fcs):
+            v = H["H1_flowcell_folds"].values()
+            H["H1_mean"] = {m_: [float(np.mean([d[m_] for d in v])), float(np.std([d[m_] for d in v]))]
+                            for m_ in ("auc", "accuracy", "recall_pos", "recall_neg")}
+            dump()
+
+        # H2: leave one species out AND test humans from an unseen flow cell
+        H.setdefault("H2_species_holdout", {})
+        for s_ in SPECIES:
+            if s_ in H["H2_species_holdout"]:
+                continue
+            need(90)
+            te_h = ((hy == 0) & (hfc == a.test_flowcell)) | (hsrc == s_)
+            p, _ = fit_predict_features(HF[~te_h], hy[~te_h], HF[te_h], a.seed)
+            H["H2_species_holdout"][s_] = summarize(hy[te_h], p)
+            log(f"H2 held-out {s_} (+ unseen human flow cell): AUC {H['H2_species_holdout'][s_]['auc']:.4f} "
+                f"pathogen recall {H['H2_species_holdout'][s_]['recall_pos']:.3f}")
+            dump()
+
+        # H3: read-length survey (all reads, including those too short to classify)
+        fn = os.path.join(cache, "lengths.json")
+        if not os.path.exists(fn):
+            need(120)
+            import pod5, glob
+            lens = {"human": [], "pathogen": []}
+            hfiles = sorted(glob.glob(os.path.join(a.data, "human", "*.pod5")))
+            per = a.n_length_survey // len(hfiles)
+            for fp in hfiles:
+                with pod5.Reader(fp) as rd:
+                    for i_, rec in enumerate(rd.reads()):
+                        if i_ >= per:
+                            break
+                        lens["human"].append(int(rec.num_samples))
+            per = a.n_length_survey // len(SPECIES)
+            for s_ in SPECIES:
+                with pod5.Reader(os.path.join(a.data, "pathogen", SPECIES[s_]["file"])) as rd:
+                    for i_, rec in enumerate(rd.reads()):
+                        if i_ >= per:
+                            break
+                        lens["pathogen"].append(int(rec.num_samples))
+            json.dump(lens, open(fn, "w"))
+            log("H3 length survey done")
+        lens = json.load(open(fn))
+        if "H3_simulation" not in H:
+            need(150)
+            te_h, p, _ = pickle.load(open(os.path.join(cache, "main_model.pkl"), "rb"))
+            lh, lp = np.array(lens["human"], float), np.array(lens["pathogen"], float)
+            lat = R["F_latency_ms"]["end_to_end_mean"]
+            sim = ReadUntilSimulator(n_pores=512, human_fraction=0.99, seed=a.seed)
+            yt = hy[te_h]
+            H["H3_simulation"] = {
+                "length_survey": {k_: {"n": len(v_), "median_bases": float(np.median(v_) / 12.5),
+                                       "mean_bases": float(np.mean(v_) / 12.5),
+                                       "frac_too_short_to_classify": float(np.mean(np.array(v_) < 1500 + WINDOW))}
+                                  for k_, v_ in lens.items()},
+                "empirical_lengths": sim.run_simulation_from_probs(
+                    p[yt == 0], p[yt == 1], lh, lp, 1500 + WINDOW, lat,
+                    duration_seconds=a.sim_duration, verbose=False),
+                "equal_lengths(human distribution for both)": sim.run_simulation_from_probs(
+                    p[yt == 0], p[yt == 1], lh, lh, 1500 + WINDOW, lat,
+                    duration_seconds=a.sim_duration, verbose=False),
+            }
+            for k_ in ("empirical_lengths", "equal_lengths(human distribution for both)"):
+                log(f"H3 {k_}: {H['H3_simulation'][k_]['enrichment']}")
             dump()
         log("ALL DONE")
     except OutOfTime:

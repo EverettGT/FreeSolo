@@ -6,13 +6,13 @@
   "recall": 0.8666666666666667,
   "f1": 0.9122807017543859,
   "auc_roc": 0.9933333333333333,
-  "latency_ms": 5.384769433332319,
+  "latency_ms": 5.196086199998717,
   "n_train": 180,
   "n_train_human": 90,
   "n_train_pathogen": 90,
   "n_test": 60,
   "n_test_human": 30,
   "n_test_pathogen": 30,
-  "train_time_seconds": 1.1426434516906738,
+  "train_time_seconds": 1.13124680519104,
   "fold_seed": 3042
 }
