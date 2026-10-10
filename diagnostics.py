@@ -235,7 +235,7 @@ def main():
             fn = os.path.join(cache, f"model_{o}.pkl")
             if os.path.exists(fn):
                 return pickle.load(open(fn, "rb"))
-            need(120)
+            need(45)
             p, m = fit_predict_features(F[o][tr], y[tr], F[o][te], a.seed)
             pickle.dump((p, m), open(fn, "wb"))
             return p, m
@@ -250,7 +250,7 @@ def main():
             log(f"A offset {o:>5}: AUC {R['A_offset_sweep'][str(o)]['auc']:.4f}")
             dump()
         if not done("D_read_level_split_offset1500"):
-            need(120)
+            need(45)
             p_rl, _ = fit_predict_features(F[1500][~rl_te], y[~rl_te], F[1500][rl_te], a.seed)
             R["D_read_level_split_offset1500"] = summarize(y[rl_te], p_rl)
             log(f"D read-level split @1500: AUC {R['D_read_level_split_offset1500']['auc']:.4f}")
@@ -275,7 +275,7 @@ def main():
             for o in (1500, 9500):
                 if done("B_batch_probes", name, str(o)):
                     continue
-                need(150)
+                need(100)
                 R["B_batch_probes"][name][str(o)] = cv_auc(F[o][sel], m1[sel].astype(int), a.seed)
                 log(f"B {name} @{o}: AUC {R['B_batch_probes'][name][str(o)]['auc']:.3f}")
                 dump()
@@ -291,7 +291,7 @@ def main():
             for o in (1500, 9500):
                 if done("C_positive_control", key, str(o)):
                     continue
-                need(120)
+                need(100)
                 R["C_positive_control"][key][str(o)] = cv_auc(F[o][sel], (src[sel] == s1).astype(int), a.seed)
                 log(f"C {key} @{o}: AUC {R['C_positive_control'][key][str(o)]['auc']:.3f}")
                 dump()
