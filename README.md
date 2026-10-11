@@ -17,6 +17,7 @@ Results from the October 2026 revision. The classifier is logistic regression on
 | Calibration on the PAO98633 fold (Brier / ECE) | 0.030 / 0.023 |
 | AUC-ROC with 1 / 2 / 3 consecutive 4,000-sample chunks (reads of at least 13,500 samples, held-out flow cell PAO98633) | 0.984 / 0.994 / 0.996 |
 | Time to decision (1 chunk) | 1.1 s of signal + 3 to 6 ms compute (preprocessing included, 2 CPU threads; the classifier itself is about 0.1 ms) |
+| Dorado `fast` basecalling of the same 1.1 s prefixes, CPU, 2 cores (same laptop VM) | 47 ms per read (about 23 channels in real time) vs 4.0 ms per read for FreeSolo on 1 thread (about 270 channels) |
 | Relative enrichment in sequenced bases at 99% human (simulated) | 12.2x to 17.7x |
 | Pathogen yield gain over a no-ejection control (simulated) | 4.1x to 14.1x, depending on capture and unblock times |
 
