@@ -11,7 +11,7 @@ writes them to one POD5 file, and times on the same machine:
   * FreeSolo preprocessing + feature extraction + classification of the same
     prefixes, single-threaded
 
-Usage (Linux or WSL):
+Usage (Linux, WSL or Windows; on Windows --cores is ignored and all cores are used):
   python baselines/dorado_timing.py --data "/mnt/c/Users/<you>/Downloads/FreeSolo Bioinformatics Project/nanopore" \
       --dorado ~/dorado/bin/dorado --model fast --cores 2 --n 300
 
@@ -60,8 +60,11 @@ def run_dorado(dorado, model, pod5_path, cores, out_fastq):
     if cores and shutil.which("taskset"):
         cmd = ["taskset", "-c", ",".join(str(i) for i in range(cores))] + cmd
     t0 = time.perf_counter()
-    with open(out_fastq, "w") as f:
-        subprocess.run(cmd, stdout=f, stderr=subprocess.DEVNULL, check=True)
+    log = out_fastq.replace(".fastq", ".log")
+    with open(out_fastq, "w") as f, open(log, "w") as err:
+        r = subprocess.run(cmd, stdout=f, stderr=err)
+    if r.returncode != 0:
+        sys.exit(f"Dorado failed (exit {r.returncode}); see {log}")
     return time.perf_counter() - t0
 
 
