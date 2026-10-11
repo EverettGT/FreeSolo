@@ -8,20 +8,38 @@ FreeSolo is a CPU-only binary classifier that distinguishes human from microbial
 
 ## Results
 
-Results from the October 2026 revision (`diagnostics.py`, results in `results/revision/diagnostics.json`). Every test set uses human reads from a PromethION flow cell that was never seen in training.
+Results from the October 2026 revision. The classifier is logistic regression on 280 signal features (`diagnostics.py --clf logreg`, results in `results/revision/logreg/diagnostics.json`). Every test set uses human reads from a PromethION flow cell that was never seen in training.
 
 | Metric | Value |
 | --- | --- |
-| AUC-ROC, each human flow cell held out in turn (mean ± sd, 3 folds) | 0.990 ± 0.002 |
-| Accuracy, same folds | 0.951 ± 0.008 |
-| AUC-ROC with 1 / 2 / 3 consecutive 4,000-sample chunks (reads of at least 13,500 samples, held-out flow cell PAO98633) | 0.974 / 0.985 / 0.990 |
-| Time to decision (1 chunk) | 1.1 s of signal + 6.3 ms compute (preprocessing included, 2 CPU threads) |
-| Relative enrichment in sequenced bases at 99% human (simulated) | 9.7x to 13.9x |
-| Pathogen yield gain over a no-ejection control (simulated) | 3.9x to 11.6x, depending on capture and unblock times |
+| AUC-ROC, each human flow cell held out in turn (mean ± sd, 3 folds) | 0.989 ± 0.001 |
+| Accuracy, same folds | 0.960 ± 0.004 |
+| Calibration on the PAO98633 fold (Brier / ECE) | 0.030 / 0.023 |
+| AUC-ROC with 1 / 2 / 3 consecutive 4,000-sample chunks (reads of at least 13,500 samples, held-out flow cell PAO98633) | 0.984 / 0.994 / 0.996 |
+| Time to decision (1 chunk) | 1.1 s of signal + 3 to 6 ms compute (preprocessing included, 2 CPU threads; the classifier itself is about 0.1 ms) |
+| Relative enrichment in sequenced bases at 99% human (simulated) | 12.2x to 17.7x |
+| Pathogen yield gain over a no-ejection control (simulated) | 4.1x to 14.1x, depending on capture and unblock times |
 
 Main-evaluation reads: 12,000 human (all 20 POD5 files) and 12,000 pathogen (3,000 per species). Simulated values come from an idealized model (no pore wear, no channel noise), so treat them as upper bounds.
 
-The first submission reported AUC 0.995 / accuracy 0.967 on a read-level random split and a 25.1x read-level enrichment from a simulator with a baseline accounting error; those numbers are kept in `results/` for reference only.
+The MLP used in the first submission is still available (`--model mlp` / `--clf mlp`); its revision results are in `results/revision/diagnostics.json`. The first submission reported AUC 0.995 / accuracy 0.967 on a read-level random split and a 25.1x read-level enrichment from a simulator with a baseline accounting error; those numbers are kept in `results/` for reference only.
+
+### What the model needs (ablation)
+
+`ablation.py` and `filter_controls.py`, results in `results/revision/ABLATION.md`.
+
+| Features | Logistic regression AUC | MLP AUC |
+| --- | --- | --- |
+| Raw 4,000-sample window | 0.505 | 0.539 |
+| 70 statistical features | 0.978 | 0.985 |
+| 210 designed filter features | 0.892 | 0.892 |
+| 210 random-kernel features (5 banks) | 0.902 to 0.948 | |
+| Statistical + designed filters (FreeSolo) | 0.989 | 0.990 |
+| Statistical + random kernels (5 banks) | 0.987 to 0.990 | |
+
+- Feature extraction is necessary; a linear model is enough.
+- The convolutional features add +0.011 AUC over the statistics (all 15 paired test sets).
+- Random kernels of the same lengths add as much as the hand-designed filters, so the gain comes from convolution and pooling, not from the specific filter shapes (compare ROCKET, Dempster et al. 2020).
 
 ### Confound checks
 
@@ -29,18 +47,19 @@ Human reads (PromethION, ligation kit SQK-LSK114) and pathogen reads (GridION, r
 
 | Check | Result |
 | --- | --- |
-| Window moved deeper into the read (1,500 → 3,000 → 5,500 → 9,500 samples) | AUC 0.974 → 0.975 → 0.980 → 0.978: no drop, so the classifier is not relying on adapter or barcode signal at the read start. A window at sample 0 (adapter included) gives 0.997. |
-| Can the features tell two human runs apart (same flow cell and sample; different flow cells; different PromethION models)? | AUC 0.51 to 0.57: run, flow cell and PromethION model leave little trace in the features. |
-| Species vs species on the single pathogen flow cell (platform held constant) | AUC tracks GC difference: S. aureus vs P. aeruginosa 0.97, S. aureus vs E. coli 0.89, E. coli vs K. pneumoniae 0.64, P. aeruginosa vs K. pneumoniae 0.67. |
-| Leave-one-species-out with an unseen human flow cell | AUC 0.955 to 0.993; S. aureus pathogen recall 0.70. |
+| Window moved deeper into the read (1,500 → 3,000 → 5,500 → 9,500 samples) | AUC 0.984 → 0.986 → 0.986 → 0.986: no drop, so the classifier is not relying on adapter or barcode signal at the read start. A window at sample 0 (adapter included) gives 0.992. |
+| Can the features tell human reads apart by flow cell or PromethION model? | AUC 0.535 and 0.563: little trace. |
+| Can they tell two runs on the same flow cell and sample apart? | AUC 0.706 (0.574 with the MLP): some run-level information, possibly pore wear between runs. |
+| Species vs species on the single pathogen flow cell (platform held constant) | AUC tracks GC difference: S. aureus vs P. aeruginosa 0.97, S. aureus vs E. coli 0.89, E. coli vs K. pneumoniae 0.65, P. aeruginosa vs K. pneumoniae 0.68. |
+| Leave-one-species-out with an unseen human flow cell | AUC 0.968 to 0.990; S. aureus pathogen recall 0.79. |
 
 What these checks cannot rule out: an effect of the GridION instrument or the rapid barcoding kit itself, because no human reads from that instrument and kit were available. A matched-platform dataset is needed for that.
 
 ## Architecture
 
-FreeSolo uses a bank of 15 biologically motivated 1D convolutional filters (edge detectors, Laplacian-of-Gaussian blob detectors, sinusoidal frequency filters, and moving-average baseline filters) to extract a 280-dimensional feature vector from each 4,000-sample signal window. A shallow MLP (256→128→64→2) classifies each vector in under 10 ms on CPU.
+Each 4,000-sample window is convolved with 15 fixed 1D filters (edge, Laplacian-of-Gaussian, sinusoidal and moving-average kernels); each output is ReLU-activated and pooled into 14 values (210 features). Seventy statistical features (moments, segment means and deviations, difference statistics, spectral band energies, autocorrelations) are added, the 280 features are standardized, and an L2-regularized logistic regression makes the decision.
 
-The filters are fixed, hand-designed kernels, not learned weights. The classifier has not yet been run against a live MinKNOW ReadUntil stream.
+The filters are fixed kernels, not learned weights, and the ablation shows their exact shapes do not matter. The classifier has not yet been run against a live MinKNOW ReadUntil stream.
 
 ---
 
@@ -151,10 +170,12 @@ python run_pipeline.py --skip-sim --skip-holdout
 ### Confound diagnostics (revision)
 
 ```
-python diagnostics.py --data ~/Downloads/nanopore --out results/revision --budget 160
+python diagnostics.py --data ~/Downloads/nanopore --out results/revision/logreg --clf logreg --budget 160
+python ablation.py --cache <diagnostics cache dir> --budget 150
+python filter_controls.py --cache <diagnostics cache dir> --budget 150
 ```
 
-Every step is checkpointed. With `--budget`, the script stops before the time limit and exits with code 3; run the same command again to continue. This is how the revision results were produced on a 2-core laptop VM.
+Every step is checkpointed. With `--budget`, each script stops before the time limit and exits with code 3; run the same command again to continue. This is how the revision results were produced on a 2-core laptop VM.
 
 The main pipeline now holds out a human flow cell for testing by default (`--split flowcell`); `--split read` reproduces the original read-level split.
 
@@ -174,7 +195,7 @@ python -m pytest tests
 | --- | --- |
 | 1 | Load 50k human + 50k pathogen reads from POD5 (12,500/species) |
 | 2 | Split: human test reads from a held-out flow cell (default) or read-level 70/15/15 (`--split read`) |
-| 3 | Feature extraction + MLP training |
+| 3 | Feature extraction + classifier training (logistic regression by default, `--model mlp` for the MLP) |
 | 4 | Evaluation on held-out test set |
 | 5 | 10-fold cross-validation on 10k training subsample |
 | 6 | ReadUntil simulation: control vs adaptive run, enrichment in bases, empirical read lengths |
@@ -206,6 +227,8 @@ FreeSolo/
 ├── real_data_loader.py
 ├── readuntil_sim.py
 ├── diagnostics.py
+├── ablation.py
+├── filter_controls.py
 ├── baselines/basecall_first.py
 ├── tests/
 ├── requirements.txt
