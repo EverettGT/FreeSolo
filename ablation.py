@@ -12,6 +12,7 @@ Models
   filters    MLP on the 210 filter features (columns 0-209)
   full       MLP on all 280 features (the FreeSolo classifier)
   logreg     logistic regression on all 280 features
+  logreg_raw logistic regression on the normalised 4,000-sample window
   drop_*     full model with one filter family removed
 
 Checkpointed: rerun until it exits 0 (exit code 3 = more work remains).
@@ -66,7 +67,7 @@ def main():
     ap.add_argument("--budget", type=float, default=150)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--models", default="full,stats,filters,logreg,raw,"
-                    "drop_edges,drop_log,drop_sinusoids,drop_moving_avg")
+                    "drop_edges,drop_log,drop_sinusoids,drop_moving_avg,logreg_raw")
     a = ap.parse_args()
     t0 = time.time()
 
@@ -102,7 +103,7 @@ def main():
                 pending = True
                 continue
             te = ((y == 0) & (fc == f)) | ((y == 1) & (part == k))
-            if kind == "raw":
+            if kind in ("raw", "logreg_raw"):
                 if X_raw is None:
                     X_raw = np.concatenate([np.load(os.path.join(a.cache, f"main_{g}.npz"))["x"]
                                             for g in mains]).astype(np.float32)
@@ -118,7 +119,8 @@ def main():
             else:
                 raise SystemExit(f"unknown model {kind}")
             s0 = time.time()
-            p = fit_predict("logreg" if kind == "logreg" else "mlp", A[~te], y[~te], A[te], a.seed)
+            clf = "logreg" if kind in ("logreg", "logreg_raw") else "mlp"
+            p = fit_predict(clf, A[~te], y[~te], A[te], a.seed)
             r = summarize(y[te], p)
             r["n_features"] = int(A.shape[1])
             r["seconds"] = time.time() - s0
