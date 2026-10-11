@@ -1,0 +1,27 @@
+{
+  "n_prefixes": 300,
+  "prefix_samples": 5500,
+  "prefix_seconds_of_signal": 1.1,
+  "dorado": {
+    "model": "/sessions/rcw-01lb2hwyz8fafpcv6kdr54yr/mdl/dna_r10.4.1_e8.2_400bps_fast@v5.2.0",
+    "cores": 2,
+    "wall_seconds": 14.068397868999455,
+    "reads_basecalled": 302,
+    "bases": 110538,
+    "seconds_per_read": 0.04689465956333152,
+    "samples_per_second": 117284.14389216788,
+    "realtime_channels_supported": 23.456828778433575
+  },
+  "freesolo": {
+    "threads": 1,
+    "n_decisions": 300,
+    "ms_per_read_mean": 4.03616360998664,
+    "ms_per_read_p95": 7.611637599893585,
+    "realtime_channels_supported": 272.53602834094255
+  },
+  "host": {
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+    "processor": "x86_64",
+    "cpu_count": 2
+  }
+}

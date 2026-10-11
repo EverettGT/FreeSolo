@@ -1,7 +1,10 @@
 """
-Convolutional Filter Feature Extractor + MLP Classifier
+Fixed-filter Feature Extractor + MLP Classifier
 
 Binary classification: 0=Human (eject), 1=Pathogen (keep)
+
+Note: the 15 filters are fixed, hand-designed kernels (not learned), so the
+model is a hand-crafted feature extractor followed by an MLP.
 """
 import numpy as np
 import os
@@ -10,6 +13,7 @@ import time
 import pickle
 from scipy.stats import skew, kurtosis
 from sklearn.neural_network import MLPClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, precision_score, recall_score,
@@ -80,14 +84,17 @@ class Conv1DFeatureExtractor:
             features.append(autocorr[lag] if lag < len(autocorr) else 0.0)
         return features
 
+    verbose = True
+
     def extract_features(self, X):
-        print(f"Extracting features from {X.shape[0]} signals...")
+        if self.verbose and X.shape[0] > 1:
+            print(f"Extracting features from {X.shape[0]} signals...")
         all_features = []
         for i in range(X.shape[0]):
             conv_feats = self._apply_convolutions(X[i])
             stat_feats = self._extract_statistical_features(X[i])
             all_features.append(conv_feats + stat_feats)
-            if (i+1) % 1000 == 0: print(f"  {i+1}/{X.shape[0]}")
+            if self.verbose and (i+1) % 5000 == 0: print(f"  {i+1}/{X.shape[0]}")
         features = np.nan_to_num(np.array(all_features, dtype=np.float64),
                                 nan=0.0, posinf=1e10, neginf=-1e10)
         return features
@@ -102,18 +109,30 @@ class Conv1DFeatureExtractor:
         return self.scaler.transform(self.extract_features(X))
 
 #Binary classifier
-class VSIClassifier:
-    def __init__(self, hidden_layers=(256, 128, 64), max_iter=500, random_state=42):
+class FreeSoloClassifier:
+    def __init__(self, model_type='logreg', hidden_layers=(256, 128, 64), max_iter=500,
+                 random_state=42, verbose=True, C=1.0):
+        """model_type: 'logreg' (default; L2 logistic regression on the
+        standardised 280 features) or 'mlp' (the 256-128-64 network used in
+        the first submission). Ablations showed the two are equivalent on
+        held-out flow cells, so the simpler linear model is the default."""
+        self.model_type = model_type
         self.feature_extractor = Conv1DFeatureExtractor()
-        self.model = MLPClassifier(
-            hidden_layer_sizes=hidden_layers, activation='relu', solver='adam',
-            alpha=1e-4, batch_size=64, learning_rate='adaptive',
-            learning_rate_init=1e-3, max_iter=max_iter, random_state=random_state,
-            early_stopping=True, validation_fraction=0.1, n_iter_no_change=20, verbose=True)
+        if model_type == 'logreg':
+            self.model = LogisticRegression(C=C, max_iter=3000)
+        elif model_type == 'mlp':
+            self.model = MLPClassifier(
+                hidden_layer_sizes=hidden_layers, activation='relu', solver='adam',
+                alpha=1e-4, batch_size=64, learning_rate='adaptive',
+                learning_rate_init=1e-3, max_iter=max_iter, random_state=random_state,
+                early_stopping=True, validation_fraction=0.1, n_iter_no_change=20, verbose=verbose)
+        else:
+            raise ValueError(f"unknown model_type {model_type}")
+        self.feature_extractor.verbose = verbose
         self.training_history = {}
 
     def train(self, X_train, y_train, X_val=None, y_val=None):
-        print("\n" + "="*60 + "\nVSI Classifier Training\n" + "="*60)
+        print("\n" + "="*60 + "\nFreeSolo Classifier Training\n" + "="*60)
         t0 = time.time()
         X_train_feat = self.feature_extractor.fit_transform(X_train)
         feat_time = time.time() - t0
@@ -124,7 +143,9 @@ class VSIClassifier:
         self.model.fit(X_train_feat, y_train)
         train_time = time.time() - t0
         self.training_history = {
-            'loss_curve': self.model.loss_curve_, 'n_iterations': self.model.n_iter_,
+            'model_type': self.model_type,
+            'loss_curve': getattr(self.model, 'loss_curve_', None),
+            'n_iterations': int(np.max(self.model.n_iter_)),
             'feature_extraction_time': feat_time, 'training_time': train_time,
             'n_features': X_train_feat.shape[1], 'n_train_samples': len(y_train),
             'train_accuracy': accuracy_score(y_train, self.model.predict(X_train_feat)),
@@ -142,6 +163,8 @@ class VSIClassifier:
         return self.model.predict_proba(self.feature_extractor.transform(X))
 
     def predict_single(self, signal):
+        """Classify one already-preprocessed window. Latency excludes
+        preprocessing; see predict_raw for end-to-end timing."""
         t0 = time.perf_counter()
         signal = signal.reshape(1, -1)
         proba = self.model.predict_proba(self.feature_extractor.transform(signal))[0]
@@ -149,8 +172,26 @@ class VSIClassifier:
         pred = int(np.argmax(proba))
         return pred, float(proba[pred]), latency_ms
 
+    def predict_raw(self, raw_pa, offset=1500, window=4000):
+        """End-to-end decision on a raw picoamp read prefix: window
+        extraction + QC + MAD normalisation + features + classifier.
+
+        Returns (pred or None if QC fails, P(pathogen), compute latency ms).
+        Signal acquisition time ((offset+window)/sample_rate) is NOT included
+        here and must be added when reporting time-to-decision.
+        """
+        from real_data_loader import _preprocess_read
+        t0 = time.perf_counter()
+        win = _preprocess_read(np.asarray(raw_pa), offset, window)
+        if win is None:
+            return None, float("nan"), (time.perf_counter() - t0) * 1000
+        proba = self.model.predict_proba(
+            self.feature_extractor.transform(win.reshape(1, -1)))[0]
+        latency_ms = (time.perf_counter() - t0) * 1000
+        return int(np.argmax(proba)), float(proba[1]), latency_ms
+
     def evaluate(self, X_test, y_test):
-        print("\n" + "="*60 + "\nVSI Classifier Evaluation\n" + "="*60)
+        print("\n" + "="*60 + "\nFreeSolo Classifier Evaluation\n" + "="*60)
         features = self.feature_extractor.transform(X_test)
         y_pred = self.model.predict(features)
         y_proba = self.model.predict_proba(features)[:, 1]
@@ -199,3 +240,7 @@ class VSIClassifier:
         self.model = data['model']
         self.feature_extractor = data['feature_extractor']
         self.training_history = data['training_history']
+
+
+# Backward compatibility: models pickled before the rename refer to VSIClassifier.
+VSIClassifier = FreeSoloClassifier

@@ -1,280 +1,179 @@
 """
-Simulated ReadUntil Hardware Feedback (Could be exchanged for actual hardware)
+ReadUntil (adaptive sampling) simulator for FreeSolo.
 
-Simulates MinION flow cell with autonomous eject/keep decisions.
+Revised Oct 2026. The original simulator (i) compared against a "baseline"
+that was not a real no-ejection run, which produced a negative
+"bases saved"; (ii) used invented read-length distributions; (iii) counted
+enrichment in reads rather than bases; and (iv) ignored capture and unblock
+time. This version simulates two runs on the same random stream:
+
+  * control  : every captured strand is sequenced to completion
+  * adaptive : after `decision_samples` of signal (offset + window(s)) plus
+               compute latency, strands classified as human are unblocked
+
+and reports enrichment the way adaptive-sampling papers do:
+
+  * relative enrichment  = pathogen share of sequenced bases (adaptive)
+                           / pathogen share of sequenced bases (control)
+  * absolute enrichment  = pathogen bases (adaptive) / pathogen bases (control)
+                           (yield gain; > 1 only if ejection frees enough
+                           pore time to outweigh false ejections)
+  * read-level enrichment (the metric used in the first submission) is still
+    reported for comparison.
+
+Decisions are drawn from classifier probabilities measured on real held-out
+reads; strand lengths are drawn from empirical read-length distributions.
+All time quantities are in seconds; lengths in raw samples (5 kHz).
+Bases are approximated as samples / SAMPLES_PER_BASE (400 b/s at 5 kHz).
 """
 
 import numpy as np
-import time
 import json
 import os
 from datetime import datetime
-from collections import defaultdict
 
-
-class SimulatedPore:
-    def __init__(self, pore_id, rng):
-        self.pore_id = pore_id
-        self.state = 'idle'
-        self.current_strand_type = None
-        self.samples_read = 0
-        self.strand_length = 0
-        self.rng = rng
-
-    def capture_strand(self, human_fraction=0.99):
-        self.state = 'sequencing'
-        self.samples_read = 0
-        if self.rng.random() < human_fraction:
-            self.current_strand_type = 'human'
-            self.strand_length = max(2000, int(self.rng.exponential(20000)))
-        else:
-            self.current_strand_type = 'pathogen'
-            self.strand_length = max(2000, int(self.rng.exponential(8000)))
-
-    def unblock(self): self.state = 'unblocking'; self.current_strand_type = None
-    def recover(self): self.state = 'recovering'
-    def make_idle(self): self.state = 'idle'; self.current_strand_type = None; self.samples_read = 0
+SAMPLE_RATE = 5000
+SAMPLES_PER_BASE = SAMPLE_RATE / 400.0   # R10.4.1 e8.2 400 bps
 
 
 class ReadUntilSimulator:
-    def __init__(self, classifier, data_generator, n_pores=256,
-                 human_fraction=0.99, seed=42, human_fasta=None, pathogen_fasta=None):
-        self.classifier = classifier
-        self.data_generator = data_generator
+    def __init__(self, n_pores=512, human_fraction=0.99, capture_s=0.5,
+                 unblock_s=0.1, seed=42, classifier=None, **_ignored):
+        """
+        n_pores       : channels (512 on a MinION/GridION flow cell)
+        capture_s     : mean idle time before a pore captures a new strand
+        unblock_s     : time to eject a strand and return to idle
+        classifier    : optional FreeSoloClassifier, only needed for the
+                        run_simulation_from_arrays convenience wrapper
+        """
         self.n_pores = n_pores
         self.human_fraction = human_fraction
-        self.human_fasta = human_fasta
-        self.pathogen_fasta = pathogen_fasta
-        self.rng = np.random.RandomState(seed)
-        self.pores = [SimulatedPore(i, self.rng) for i in range(n_pores)]
-        self.window_size = 2000
-        self.window_time_ms = (self.window_size / 4000) * 1000
+        self.capture_s = capture_s
+        self.unblock_s = unblock_s
+        self.seed = seed
+        self.classifier = classifier
 
-    def run_simulation(self, duration_seconds=10, verbose=True):
-        if verbose:
-            print(f"\n{'='*60}\nVSI ReadUntil Simulation\n{'='*60}")
-            print(f"  Pores: {self.n_pores}, Human: {self.human_fraction*100:.0f}%")
-
-        for p in self.pores: p.make_idle()
-        n_steps = int(duration_seconds / (self.window_time_ms / 1000))
-        total_strands = human_strands = pathogen_strands = 0
-        human_unblocked = human_missed = pathogen_ejected = pathogen_sequenced = 0
-        total_bases_vsi = total_bases_baseline = 0
-        latencies = []
-
-        for step in range(n_steps):
-            for pore in self.pores:
-                if pore.state == 'idle':
-                    pore.capture_strand(self.human_fraction)
-                    total_strands += 1
-                    if pore.current_strand_type == 'human': human_strands += 1
-                    else: pathogen_strands += 1
-                elif pore.state == 'sequencing':
-                    pore.samples_read += self.window_size
-                    if pore.samples_read == self.window_size:
-                        sig = (self.data_generator.generate_human_signal(self.human_fasta, self.window_size)
-                               if pore.current_strand_type == 'human'
-                               else self.data_generator.generate_pathogen_signal(self.pathogen_fasta, self.window_size))
-                        pred, conf, lat = self.classifier.predict_single(sig)
-                        latencies.append(lat)
-                        if pred == 0:
-                            if pore.current_strand_type == 'human':
-                                human_unblocked += 1
-                            else:
-                                pathogen_ejected += 1
-                            total_bases_vsi += self.window_size
-                            pore.unblock()
-                        else:
-                            if pore.current_strand_type == 'pathogen': pass
-                            else: human_missed += 1
-                    if pore.samples_read >= pore.strand_length:
-                        total_bases_vsi += pore.strand_length
-                        if pore.current_strand_type == 'pathogen': pathogen_sequenced += 1
-                        pore.make_idle()
-                    total_bases_baseline += self.window_size
-                elif pore.state == 'unblocking': pore.recover()
-                elif pore.state == 'recovering': pore.make_idle()
-
-            if verbose and (step+1) % (n_steps//10) == 0:
-                print(f"  {(step+1)/n_steps*100:.0f}% | Strands: {total_strands} | "
-                      f"Unblocked: {human_unblocked} | Pathogens: {pathogen_sequenced}")
-
-        orig_pct = pathogen_strands / max(1, total_strands) * 100
-        kept = pathogen_sequenced + human_missed
-        enriched_pct = pathogen_sequenced / max(1, kept) * 100
-        enrichment = enriched_pct / max(0.01, orig_pct)
-
-        results = {
-            'simulation_params': {'n_pores': self.n_pores, 'human_fraction': self.human_fraction,
-                                  'duration_seconds': duration_seconds},
-            'strand_counts': {'total': total_strands, 'human': human_strands, 'pathogen': pathogen_strands},
-            'classification': {
-                'human_correctly_unblocked': human_unblocked, 'human_missed': human_missed,
-                'pathogen_correctly_sequenced': pathogen_sequenced,
-                'pathogen_incorrectly_ejected': pathogen_ejected,
-                'unblock_accuracy': human_unblocked / max(1, human_unblocked + human_missed),
-            },
-            'efficiency': {
-                'bases_sequenced_vsi': total_bases_vsi, 'bases_sequenced_baseline': total_bases_baseline,
-                'bases_saved': total_bases_baseline - total_bases_vsi,
-                'percentage_saved': (total_bases_baseline - total_bases_vsi) / max(1, total_bases_baseline) * 100,
-            },
-            'enrichment': {'original_pathogen_pct': orig_pct, 'enriched_pathogen_pct': enriched_pct,
-                          'enrichment_factor': enrichment},
-            'latency': {
-                'mean_ms': float(np.mean(latencies)) if latencies else 0,
-                'median_ms': float(np.median(latencies)) if latencies else 0,
-                'p95_ms': float(np.percentile(latencies, 95)) if latencies else 0,
-            },
-            'timestamp': datetime.now().isoformat(),
-        }
-        if verbose:
-            print(f"\n  Human unblocked: {human_unblocked}, Pathogen kept: {pathogen_sequenced}")
-            print(f"  False ejections: {pathogen_ejected}, Missed human: {human_missed}")
-            print(f"  Enrichment: {enrichment:.1f}x")
-        return results
-
-    def run_simulation_from_arrays(self, X_test, y_test, duration_seconds=600, verbose=True):
-
-        if verbose:
-            print(f"\n{'='*60}\nFreeSolo ReadUntil Simulation (real signals)\n{'='*60}")
-            print(f"  Pores: {self.n_pores}, Human background: {self.human_fraction*100:.0f}%")
-            print(f"  Duration: {duration_seconds}s")
-
-        human_signals    = X_test[y_test == 0]
-        pathogen_signals = X_test[y_test == 1]
-        if len(human_signals) == 0 or len(pathogen_signals) == 0:
-            raise ValueError("X_test must contain both human (0) and pathogen (1) reads.")
-
-        window_size   = X_test.shape[1]
-        window_time_s = window_size / 5000.0 
-        n_steps       = int(duration_seconds / window_time_s)
-
-        for p in self.pores:
-            p.make_idle()
-
-        total_strands = human_strands = pathogen_strands = 0
-        human_unblocked = human_missed = pathogen_ejected = pathogen_sequenced = 0
-        total_bases_vsi = total_bases_baseline = 0
-        latencies = []
-
-
-        h_order = self.rng.permutation(len(human_signals))
-        p_order = self.rng.permutation(len(pathogen_signals))
-        h_idx = 0
-        p_idx = 0
-
-        for step in range(n_steps):
-            for pore in self.pores:
-                if pore.state == 'idle':
-                    pore.capture_strand(self.human_fraction)
-                    total_strands += 1
-                    if pore.current_strand_type == 'human':
-                        human_strands += 1
+    # ------------------------------------------------------------------ core
+    def _run(self, adaptive, p_h, p_p, len_h, len_p, decision_samples,
+             latency_s, threshold, duration_s):
+        rng = np.random.RandomState(self.seed)   # identical stream for both runs
+        fs = SAMPLE_RATE
+        c = dict(h_captured=0, p_captured=0, h_ejected=0, h_missed=0,
+                 p_ejected=0, p_kept=0, h_samples=0.0, p_samples=0.0,
+                 decided=0, too_short=0)
+        for _ in range(self.n_pores):
+            t = 0.0
+            while True:
+                t += rng.exponential(self.capture_s)
+                if t >= duration_s:
+                    break
+                is_h = rng.random_sample() < self.human_fraction
+                L = float((len_h if is_h else len_p)[rng.randint(len(len_h if is_h else len_p))])
+                prob = (p_h if is_h else p_p)[rng.randint(len(p_h if is_h else p_p))]
+                c["h_captured" if is_h else "p_captured"] += 1
+                seq = L
+                if adaptive and L > decision_samples:
+                    c["decided"] += 1
+                    eject = prob < threshold
+                    if eject:
+                        seq = decision_samples
+                        dt = decision_samples / fs + latency_s + self.unblock_s
+                        c["h_ejected" if is_h else "p_ejected"] += 1
                     else:
-                        pathogen_strands += 1
+                        dt = L / fs
+                        c["h_missed" if is_h else "p_kept"] += 1
+                else:
+                    if adaptive:
+                        c["too_short"] += 1
+                    dt = L / fs
+                if t + dt > duration_s:           # truncate at end of run
+                    seq = min(seq, (duration_s - t) * fs)
+                    dt = duration_s - t
+                c["h_samples" if is_h else "p_samples"] += seq
+                t += dt
+        return c
 
-                elif pore.state == 'sequencing':
-                    pore.samples_read += window_size
-                    if pore.samples_read == window_size:
-                        # Draw real signal for this pore's strand type
-                        if pore.current_strand_type == 'human':
-                            if h_idx >= len(h_order):
-                                h_order = self.rng.permutation(len(human_signals))
-                                h_idx = 0
-                            sig = human_signals[h_order[h_idx]]
-                            h_idx += 1
-                        else:
-                            if p_idx >= len(p_order):
-                                p_order = self.rng.permutation(len(pathogen_signals))
-                                p_idx = 0
-                            sig = pathogen_signals[p_order[p_idx]]
-                            p_idx += 1
+    def run_simulation_from_probs(self, p_human, p_pathogen, len_human, len_pathogen,
+                                  decision_samples, latency_ms=0.0, threshold=0.5,
+                                  duration_seconds=3600, verbose=True):
+        """p_human / p_pathogen: P(pathogen) for real held-out human / pathogen
+        reads. len_*: empirical raw read lengths (samples)."""
+        p_h, p_p = np.asarray(p_human, float), np.asarray(p_pathogen, float)
+        len_h, len_p = np.asarray(len_human, float), np.asarray(len_pathogen, float)
+        lat = latency_ms / 1000.0
+        ctrl = self._run(False, p_h, p_p, len_h, len_p, decision_samples, lat, threshold, duration_seconds)
+        ada = self._run(True, p_h, p_p, len_h, len_p, decision_samples, lat, threshold, duration_seconds)
 
-                        pred, conf, lat = self.classifier.predict_single(sig)
-                        latencies.append(lat)
-
-                        if pred == 0:
-                            if pore.current_strand_type == 'human':
-                                human_unblocked += 1
-                            else:
-                                pathogen_ejected += 1
-                            total_bases_vsi += window_size
-                            pore.unblock()
-                        else:
-                            if pore.current_strand_type == 'human':
-                                human_missed += 1
-
-                    if pore.samples_read >= pore.strand_length:
-                        total_bases_vsi += pore.strand_length
-                        if pore.current_strand_type == 'pathogen':
-                            pathogen_sequenced += 1
-                        pore.make_idle()
-
-                    total_bases_baseline += window_size
-
-                elif pore.state == 'unblocking':
-                    pore.recover()
-                elif pore.state == 'recovering':
-                    pore.make_idle()
-
-            if verbose and n_steps >= 10 and (step + 1) % (n_steps // 10) == 0:
-                print(f"  {(step+1)/n_steps*100:.0f}% | Strands: {total_strands} | "
-                      f"Unblocked: {human_unblocked} | Pathogens kept: {pathogen_sequenced}")
-
-        orig_pct     = pathogen_strands / max(1, total_strands) * 100
-        kept         = pathogen_sequenced + human_missed
-        enriched_pct = pathogen_sequenced / max(1, kept) * 100
-        enrichment   = enriched_pct / max(0.01, orig_pct)
-
+        def share(c):
+            tot = c["h_samples"] + c["p_samples"]
+            return c["p_samples"] / tot if tot else 0.0
+        b = SAMPLES_PER_BASE
+        kept = ada["p_kept"] + ada["h_missed"]
+        orig_read_pct = ctrl["p_captured"] / max(1, ctrl["p_captured"] + ctrl["h_captured"])
+        read_level = (ada["p_kept"] / kept) / orig_read_pct if kept and orig_read_pct else float("nan")
         results = {
-            'simulation_params': {
-                'n_pores': self.n_pores,
-                'human_fraction': self.human_fraction,
-                'duration_seconds': duration_seconds,
-                'signal_source': 'real_held_out_test_set',
-                'sampling_rate_hz': 5000,
-                'sampling_method': 'random_without_replacement_with_reshuffle',
+            "simulation_params": {
+                "n_pores": self.n_pores, "human_fraction": self.human_fraction,
+                "duration_seconds": duration_seconds, "capture_s": self.capture_s,
+                "unblock_s": self.unblock_s, "decision_samples": int(decision_samples),
+                "decision_time_s": decision_samples / SAMPLE_RATE + lat,
+                "latency_ms": latency_ms, "threshold": threshold,
+                "sampling_rate_hz": SAMPLE_RATE, "samples_per_base": b,
+                "mean_len_human_bases": float(len_h.mean() / b),
+                "mean_len_pathogen_bases": float(len_p.mean() / b),
+                "seed": self.seed,
             },
-            'strand_counts': {
-                'total': total_strands, 'human': human_strands, 'pathogen': pathogen_strands,
+            "control": {k: float(v) for k, v in ctrl.items()},
+            "adaptive": {k: float(v) for k, v in ada.items()},
+            "bases": {
+                "control_pathogen_bases": ctrl["p_samples"] / b,
+                "adaptive_pathogen_bases": ada["p_samples"] / b,
+                "control_total_bases": (ctrl["h_samples"] + ctrl["p_samples"]) / b,
+                "adaptive_total_bases": (ada["h_samples"] + ada["p_samples"]) / b,
+                "control_pathogen_share": share(ctrl),
+                "adaptive_pathogen_share": share(ada),
             },
-            'classification': {
-                'human_correctly_unblocked': human_unblocked,
-                'human_missed': human_missed,
-                'pathogen_correctly_sequenced': pathogen_sequenced,
-                'pathogen_incorrectly_ejected': pathogen_ejected,
-                'unblock_accuracy': human_unblocked / max(1, human_unblocked + human_missed),
+            "enrichment": {
+                "relative_enrichment_bases": share(ada) / share(ctrl) if share(ctrl) else float("nan"),
+                "absolute_enrichment_bases": ada["p_samples"] / ctrl["p_samples"] if ctrl["p_samples"] else float("nan"),
+                "read_level_enrichment": read_level,
             },
-            'efficiency': {
-                'bases_sequenced_vsi': total_bases_vsi,
-                'bases_sequenced_baseline': total_bases_baseline,
-                'bases_saved': total_bases_baseline - total_bases_vsi,
-                'percentage_saved': (total_bases_baseline - total_bases_vsi) / max(1, total_bases_baseline) * 100,
+            "classification": {
+                "human_ejected": ada["h_ejected"], "human_missed": ada["h_missed"],
+                "pathogen_kept": ada["p_kept"], "pathogen_ejected": ada["p_ejected"],
+                "strands_too_short_to_decide": ada["too_short"],
             },
-            'enrichment': {
-                'original_pathogen_pct': orig_pct,
-                'enriched_pathogen_pct': enriched_pct,
-                'enrichment_factor': enrichment,
-            },
-            'latency': {
-                'mean_ms':   float(np.mean(latencies))           if latencies else 0,
-                'median_ms': float(np.median(latencies))         if latencies else 0,
-                'p95_ms':    float(np.percentile(latencies, 95)) if latencies else 0,
-            },
-            'timestamp': datetime.now().isoformat(),
+            "timestamp": datetime.now().isoformat(),
         }
-
         if verbose:
-            print(f"\n  Human unblocked:   {human_unblocked}")
-            print(f"  Pathogen kept:     {pathogen_sequenced}")
-            print(f"  False ejections:   {pathogen_ejected}")
-            print(f"  Missed human:      {human_missed}")
-            print(f"  Enrichment factor: {enrichment:.1f}x")
-
+            e = results["enrichment"]
+            print(f"  Relative enrichment (bases): {e['relative_enrichment_bases']:.2f}x  "
+                  f"Absolute (pathogen yield): {e['absolute_enrichment_bases']:.2f}x  "
+                  f"Read-level: {e['read_level_enrichment']:.2f}x")
         return results
 
-    def save_results(self, results, output_dir):
+    # ------------------------------------------------------- compatibility
+    def run_simulation_from_arrays(self, X_test, y_test, duration_seconds=3600,
+                                   len_human=None, len_pathogen=None,
+                                   offset=1500, latency_ms=None, verbose=True):
+        """Wrapper used by run_pipeline.py: scores the held-out windows with
+        self.classifier, then calls run_simulation_from_probs."""
+        if self.classifier is None:
+            raise ValueError("classifier required")
+        proba = self.classifier.predict_proba(X_test)[:, 1]
+        window = X_test.shape[1]
+        if latency_ms is None:
+            lat = [self.classifier.predict_single(X_test[i])[2] for i in range(min(100, len(X_test)))]
+            latency_ms = float(np.mean(lat))
+        if len_human is None or len_pathogen is None:
+            raise ValueError("Empirical read lengths (len_human, len_pathogen) are required; "
+                             "take them from the 'raw_len' column of the read table.")
+        return self.run_simulation_from_probs(
+            proba[y_test == 0], proba[y_test == 1], len_human, len_pathogen,
+            decision_samples=offset + window, latency_ms=latency_ms,
+            duration_seconds=duration_seconds, verbose=verbose)
+
+    def save_results(self, results, output_dir, name="simulation_results.json"):
         os.makedirs(output_dir, exist_ok=True)
-        with open(os.path.join(output_dir, 'simulation_results.json'), 'w') as f:
+        with open(os.path.join(output_dir, name), "w") as f:
             json.dump(results, f, indent=2, default=str)
